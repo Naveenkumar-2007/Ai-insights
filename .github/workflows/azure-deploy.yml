@@ -74,7 +74,7 @@ jobs:
     - name: Create deployment package
       run: |
         cd VIONEX-finance-Ai-Stock-price-predictor-main
-        zip -r ../deploy.zip . -x "*.git*" -x "*__pycache__*" -x "*.pyc"
+        zip -r ../deploy.zip . -x "*.git*" -x "*__pycache__*" -x "*.pyc" -x "*/node_modules/*" -x "*/frontend/*"
 
     - name: Azure Login
       uses: azure/login@v1
@@ -94,6 +94,12 @@ jobs:
             ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
             SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
             WEBSITES_PORT="8000"
+        
+        # Set startup command
+        az webapp config set \
+          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+          --name "${{ env.AZURE_WEBAPP_NAME }}" \
+          --startup-file "gunicorn --bind=0.0.0.0 --timeout 600 wsgi:app"
 
     - name: Deploy to Azure Web App with retry
       run: |
