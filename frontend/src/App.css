@@ -1,0 +1,18 @@
+:root {
+  color-scheme: light;
+  --color-brand: #3A8AFF;
+  --color-brand-hover: #1F74F0;
+  --color-brand-surface: #E8F1FF;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #5A5A5A;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: #ffffff;
+  color: var(--color-text-primary);
+}

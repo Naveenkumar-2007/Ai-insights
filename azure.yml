@@ -1,0 +1,20 @@
+# Azure deployment configuration for Flask + React app
+
+# Startup command
+python -m gunicorn wsgi:app
+
+# Runtime
+runtime: python|3.12
+
+# Build configuration
+build:
+  os: linux
+  
+# App settings
+app_settings:
+  - name: SCM_DO_BUILD_DURING_DEPLOYMENT
+    value: "1"
+  - name: WEBSITE_HTTPLOGGING_RETENTION_DAYS
+    value: "7"
+  - name: WEBSITES_PORT
+    value: "8000"
