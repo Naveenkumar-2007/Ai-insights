@@ -62,65 +62,41 @@ jobs:
         rm -rf VIONEX-finance-Ai-Stock-price-predictor-main/build
         cp -r frontend/build VIONEX-finance-Ai-Stock-price-predictor-main/build
 
+    - name: Add Firebase service account to deployment
+      run: |
+        echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > VIONEX-finance-Ai-Stock-price-predictor-main/firebase-admin.json
+        chmod 600 VIONEX-finance-Ai-Stock-price-predictor-main/firebase-admin.json
+
     - name: Create deployment package
       run: |
         cd VIONEX-finance-Ai-Stock-price-predictor-main
         zip -r ../deploy.zip . -x "*.git*" -x "*__pycache__*" -x "*.pyc"
 
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v3
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         package: deploy.zip
 
     - name: Configure Azure App Settings
-      uses: azure/appservice-settings@v1
-      with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        app-settings-json: |
-          [
-            {
-              "name": "TWELVE_DATA_API_KEY",
-              "value": "${{ secrets.TWELVE_DATA_API_KEY }}",
-              "slotSetting": false
-            },
-            {
-              "name": "FINNHUB_API_KEY",
-              "value": "${{ secrets.FINNHUB_API_KEY }}",
-              "slotSetting": false
-            },
-            {
-              "name": "FIREBASE_SERVICE_ACCOUNT_PATH",
-              "value": "/home/site/wwwroot/firebase-admin.json",
-              "slotSetting": false
-            },
-            {
-              "name": "ADMIN_EMAILS",
-              "value": "${{ secrets.ADMIN_EMAILS }}",
-              "slotSetting": false
-            },
-            {
-              "name": "ALLOWED_ORIGINS",
-              "value": "${{ secrets.ALLOWED_ORIGINS }}",
-              "slotSetting": false
-            },
-            {
-              "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
-              "value": "true",
-              "slotSetting": false
-            }
-          ]
-        
-    - name: Upload Firebase Service Account
       run: |
-        echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > firebase-admin.json
-        az webapp config storage-account add \
+        az webapp config appsettings set \
           --name ${{ env.AZURE_WEBAPP_NAME }} \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-          --custom-id firebase \
-          --storage-type AzureBlob \
-          --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
-          --share-name config \
-          --access-key ${{ secrets.AZURE_STORAGE_KEY }} \
-          --mount-path /home/site/wwwroot
+          --settings \
+            TWELVE_DATA_API_KEY="${{ secrets.TWELVE_DATA_API_KEY }}" \
+            FINNHUB_API_KEY="${{ secrets.FINNHUB_API_KEY }}" \
+            FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/firebase-admin.json" \
+            ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
+            ALLOWED_ORIGINS="${{ secrets.ALLOWED_ORIGINS }}" \
+            SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
+            WEBSITES_PORT="8000"
+
+    - name: Logout from Azure
+      run: |
+        az logout
