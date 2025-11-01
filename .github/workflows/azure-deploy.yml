@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: azure-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   AZURE_WEBAPP_NAME: Aiinsight
   AZURE_RESOURCE_GROUP: Ai_insights
@@ -77,13 +81,7 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v3
-      with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        package: deploy.zip
-
-    - name: Configure Azure App Settings
+    - name: Configure Azure App Settings (before deployment)
       run: |
         az webapp config appsettings set \
           --name ${{ env.AZURE_WEBAPP_NAME }} \
@@ -94,8 +92,53 @@ jobs:
             FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/firebase-admin.json" \
             ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
             ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
-            SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
+            SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
             WEBSITES_PORT="8000"
+
+    - name: Deploy to Azure Web App with retry
+      run: |
+        set -e
+        attempts=0
+        max_attempts=5
+        sleep_secs=15
+        
+        while [ $attempts -lt $max_attempts ]; do
+          echo "Deployment attempt $((attempts+1)) of $max_attempts..."
+          
+          if az webapp deployment source config-zip \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ env.AZURE_WEBAPP_NAME }}" \
+            --src deploy.zip \
+            --timeout 600 \
+            --output json; then
+            echo "✓ Deployment succeeded!"
+            break
+          else
+            rc=$?
+            echo "✗ Deployment attempt $((attempts+1)) failed with exit code $rc"
+            attempts=$((attempts+1))
+            
+            if [ $attempts -lt $max_attempts ]; then
+              echo "Checking for active deployments..."
+              az webapp deployment list \
+                --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+                --name "${{ env.AZURE_WEBAPP_NAME }}" \
+                --output table || true
+              
+              echo "Waiting ${sleep_secs} seconds before retry..."
+              sleep $sleep_secs
+            else
+              echo "✗ Max attempts reached. Deployment failed."
+              exit 1
+            fi
+          fi
+        done
+
+    - name: Restart Azure Web App
+      run: |
+        az webapp restart \
+          --name ${{ env.AZURE_WEBAPP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
 
     - name: Logout from Azure
       run: |
