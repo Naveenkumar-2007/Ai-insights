@@ -81,8 +81,24 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Configure Azure App Settings (before deployment)
+    - name: Stop ongoing deployments and configure app
       run: |
+        # Stop the app to clear any ongoing deployments
+        echo "Stopping app to clear deployment locks..."
+        az webapp stop --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+        
+        # Wait for app to stop
+        sleep 10
+        
+        # Remove WEBSITE_RUN_FROM_PACKAGE if it exists
+        echo "Removing WEBSITE_RUN_FROM_PACKAGE setting..."
+        az webapp config appsettings delete \
+          --name ${{ env.AZURE_WEBAPP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --setting-names WEBSITE_RUN_FROM_PACKAGE || true
+        
+        # Configure app settings
+        echo "Configuring app settings..."
         az webapp config appsettings set \
           --name ${{ env.AZURE_WEBAPP_NAME }} \
           --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
@@ -98,39 +114,54 @@ jobs:
             PORT="8000"
         
         # Set startup command to use gunicorn config file
+        echo "Setting startup command..."
         az webapp config set \
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
           --name "${{ env.AZURE_WEBAPP_NAME }}" \
           --startup-file "gunicorn --config gunicorn_config.py wsgi:app"
+        
+        # Start the app
+        echo "Starting app..."
+        az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
 
     - name: Deploy to Azure Web App with retry
       run: |
         set -e
         attempts=0
         max_attempts=3
-        sleep_secs=20
+        sleep_secs=30
         
         while [ $attempts -lt $max_attempts ]; do
+          echo "=========================================="
           echo "Deployment attempt $((attempts+1)) of $max_attempts..."
+          echo "=========================================="
           
+          # Try to deploy
           if az webapp deployment source config-zip \
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --name "${{ env.AZURE_WEBAPP_NAME }}" \
             --src deploy.zip \
-            --timeout 900 \
-            --output json; then
-            echo "✓ Deployment succeeded!"
-            break
+            --timeout 1200; then
+            echo "✅ Deployment succeeded!"
+            exit 0
           else
             rc=$?
-            echo "✗ Deployment attempt $((attempts+1)) failed with exit code $rc"
+            echo "❌ Deployment attempt $((attempts+1)) failed with exit code $rc"
             attempts=$((attempts+1))
             
             if [ $attempts -lt $max_attempts ]; then
-              echo "Waiting ${sleep_secs} seconds before retry..."
+              echo "⏳ Waiting ${sleep_secs} seconds before retry..."
+              echo "🔄 Restarting app to clear deployment locks..."
+              
+              # Stop and start app to clear locks
+              az webapp stop --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+              sleep 10
+              az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+              
               sleep $sleep_secs
             else
-              echo "✗ Max attempts reached. Deployment failed."
+              echo "❌ Max attempts reached. Deployment failed."
+              echo "📋 Check deployment logs at: https://aiinsight-fyhyenesh4d2hee9.scm.centralindia-01.azurewebsites.net/api/deployments/latest"
               exit 1
             fi
           fi
@@ -138,11 +169,24 @@ jobs:
 
     - name: Verify deployment
       run: |
-        echo "Waiting for app to fully start..."
-        sleep 30
+        echo "⏳ Waiting for app to fully start..."
+        sleep 60
         
-        echo "Checking application health..."
-        curl -f https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net/ || echo "App may still be starting..."
+        echo "🔍 Checking application health..."
+        max_health_checks=5
+        for i in $(seq 1 $max_health_checks); do
+          echo "Health check attempt $i of $max_health_checks..."
+          
+          if curl -f -s -o /dev/null -w "%{http_code}" https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net/ | grep -q "200"; then
+            echo "✅ App is responding successfully!"
+            exit 0
+          else
+            echo "⚠️  App not ready yet, waiting 20 seconds..."
+            sleep 20
+          fi
+        done
+        
+        echo "⚠️  App may still be starting. Check logs manually if needed."
 
     - name: Logout from Azure
       run: |
