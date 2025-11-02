@@ -1,10 +1,7 @@
 from flask import Flask, request, render_template, jsonify, send_from_directory, g
 from flask_cors import CORS
-import pandas as pd
 import os
 from datetime import datetime, timedelta
-import ta
-import numpy as np
 import warnings
 import logging
 from logging.handlers import RotatingFileHandler
@@ -25,17 +22,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Import our custom stock API using Twelve Data
-from stock_api import (
-    get_stock_history, 
-    get_intraday_data,
-    get_company_news,
-    get_sentiment_analysis,
-    get_quote_data,
-    get_company_profile,
-    get_company_metrics,
-    search_symbols
-)
+# Heavy imports (pandas, numpy, ta, stock_api) will be lazy-loaded when needed
+# to improve startup time for Azure App Service
 
 # Model will be loaded lazily on first use
 MODEL_PATH = 'artifacts/stock_lstm_model.h5'
@@ -205,6 +193,9 @@ def serve(path):
 @app.route('/api/search')
 def search_tickers():
     """Search tickers across global exchanges."""
+    # Lazy import stock_api
+    from stock_api import search_symbols
+    
     query = request.args.get('q', default='', type=str).strip()
     limit = request.args.get('limit', default=5, type=int)
     limit = max(1, min(limit, 10))
@@ -222,6 +213,19 @@ def search_tickers():
 @app.route('/api/stock/<ticker>')
 def get_stock_data(ticker):
     """Get comprehensive stock data with prediction and profit/loss analysis"""
+    # Lazy import heavy dependencies
+    import pandas as pd
+    import numpy as np
+    import ta
+    from stock_api import (
+        get_stock_history, 
+        get_intraday_data,
+        get_company_profile,
+        get_company_metrics,
+        get_quote_data,
+        search_symbols
+    )
+    
     days = request.args.get('days', default=7, type=int)
     days = max(1, min(days, 30))  # Limit between 1-30 days
     
@@ -608,6 +612,9 @@ def get_stock_data(ticker):
 @app.route('/api/news/<ticker>')
 def get_news(ticker):
     """Get company news"""
+    # Lazy import stock_api
+    from stock_api import get_company_news
+    
     try:
         ticker = ticker.upper()
         days = request.args.get('days', default=7, type=int)
@@ -630,6 +637,9 @@ def get_news(ticker):
 @app.route('/api/sentiment/<ticker>')
 def get_sentiment(ticker):
     """Get sentiment analysis"""
+    # Lazy import stock_api
+    from stock_api import get_sentiment_analysis
+    
     try:
         ticker = ticker.upper()
         sentiment = get_sentiment_analysis(ticker)
@@ -664,6 +674,9 @@ def admin_system_health():
 
 def predict_multi_day_lstm(hist, current_price, days):
     """Predict multiple days ahead using LSTM model"""
+    # Lazy import numpy
+    import numpy as np
+    
     predictions = []
     
     try:
