@@ -109,6 +109,13 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+    - name: Stop the web app
+      run: |
+        echo "Stopping web app to prevent conflicts..."
+        az webapp stop \
+          --name ${{ env.AZURE_WEBAPP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+
     - name: Configure Azure App Settings
       run: |
         # Configure app settings
@@ -123,12 +130,12 @@ jobs:
             FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/firebase-admin.json" \
             ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
             ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
-            SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
+            SCM_DO_BUILD_DURING_DEPLOYMENT="0" \
             ENABLE_ORYX_BUILD="false" \
+            WEBSITE_RUN_FROM_PACKAGE="0" \
             WEBSITES_PORT="8000" \
             PORT="8000" \
-            WEBSITES_CONTAINER_START_TIME_LIMIT="1800" \
-            POST_BUILD_COMMAND="pip install --no-cache-dir -r requirements.txt"
+            WEBSITES_CONTAINER_START_TIME_LIMIT="1800"
         
         # Set startup command
         echo "Setting startup command..."
@@ -143,26 +150,43 @@ jobs:
         echo "Deploying to Azure Web App..."
         echo "=========================================="
 
-        az webapp deploy \
-          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-          --name "${{ env.AZURE_WEBAPP_NAME }}" \
-          --src-path deploy.zip \
-          --type zip \
-          --async true
+        # Get deployment credentials
+        CREDS=$(az webapp deployment list-publishing-credentials \
+          --name ${{ env.AZURE_WEBAPP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --query "{username:publishingUserName, password:publishingPassword}" \
+          -o json)
+        
+        USERNAME=$(echo $CREDS | jq -r .username)
+        PASSWORD=$(echo $CREDS | jq -r .password)
+        
+        # Deploy using Kudu API directly
+        curl -X POST \
+          "https://${USERNAME}:${PASSWORD}@aiinsight-fyhyenesh4d2hee9.scm.centralindia-01.azurewebsites.net/api/zipdeploy?isAsync=true" \
+          -H "Content-Type: application/zip" \
+          --data-binary @deploy.zip \
+          -v
+
+    - name: Start the web app
+      run: |
+        echo "Starting web app..."
+        az webapp start \
+          --name ${{ env.AZURE_WEBAPP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
 
     - name: Wait for deployment
       run: |
-        echo "Waiting for deployment to complete..."
-        sleep 30
+        echo "Waiting for app to start..."
+        sleep 120
         
         # Check deployment status
-        for i in {1..20}; do
+        for i in {1..10}; do
           status=$(az webapp show \
             --name "${{ env.AZURE_WEBAPP_NAME }}" \
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --query state -o tsv)
           
-          echo "App state: $status (attempt $i/20)"
+          echo "App state: $status (attempt $i/10)"
           
           if [ "$status" == "Running" ]; then
             echo "✅ App is running!"
