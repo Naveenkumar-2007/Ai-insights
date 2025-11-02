@@ -566,7 +566,7 @@ if __name__ == "__main__":
 
 def get_company_news(ticker, days=7):
     """
-    Fetch company news from Finnhub API
+    Fetch company news from Finnhub API - ONLY news specifically about the searched stock
     
     Args:
         ticker (str): Stock symbol
@@ -577,6 +577,19 @@ def get_company_news(ticker, days=7):
     """
     try:
         print(f"Fetching news for {ticker} from Finnhub...")
+        
+        # Get company profile first to get the company name for better filtering
+        company_name = None
+        try:
+            profile_url = f'{FINNHUB_BASE_URL}/stock/profile2'
+            profile_params = {'symbol': ticker, 'token': FINNHUB_API_KEY}
+            profile_response = requests.get(profile_url, params=profile_params, timeout=10)
+            if profile_response.status_code == 200:
+                profile_data = profile_response.json()
+                company_name = profile_data.get('name', '').lower()
+                print(f"Company name: {company_name}")
+        except Exception as e:
+            print(f"Could not fetch company profile: {e}")
         
         # Calculate date range
         end_date = datetime.now()
@@ -598,20 +611,43 @@ def get_company_news(ticker, days=7):
             print(f"No news found for {ticker}")
             return []
         
-        # Format news articles
+        # Filter and format news articles - ONLY include articles mentioning the ticker or company
         news_articles = []
-        for article in news_data[:10]:  # Limit to 10 most recent
-            news_articles.append({
-                'headline': article.get('headline', 'No headline'),
-                'summary': article.get('summary', 'No summary available'),
-                'source': article.get('source', 'Unknown'),
-                'url': article.get('url', '#'),
-                'image': article.get('image', ''),
-                'datetime': datetime.fromtimestamp(article.get('datetime', 0)).strftime('%Y-%m-%d %H:%M'),
-                'timestamp': article.get('datetime', 0)
-            })
+        ticker_lower = ticker.lower()
         
-        print(f"Fetched {len(news_articles)} news articles for {ticker}")
+        for article in news_data:
+            headline = article.get('headline', '').lower()
+            summary = article.get('summary', '').lower()
+            
+            # Check if article is relevant to the searched stock
+            is_relevant = False
+            
+            # Check if ticker symbol is mentioned
+            if ticker_lower in headline or ticker_lower in summary:
+                is_relevant = True
+            
+            # Check if company name is mentioned (if we have it)
+            if company_name and (company_name in headline or company_name in summary):
+                is_relevant = True
+            
+            # Only add relevant articles
+            if is_relevant:
+                news_articles.append({
+                    'headline': article.get('headline', 'No headline'),
+                    'summary': article.get('summary', 'No summary available'),
+                    'source': article.get('source', 'Unknown'),
+                    'url': article.get('url', '#'),
+                    'image': article.get('image', ''),
+                    'datetime': datetime.fromtimestamp(article.get('datetime', 0)).strftime('%Y-%m-%d %H:%M'),
+                    'timestamp': article.get('datetime', 0),
+                    'related': article.get('related', ticker)  # Ensure it shows the ticker
+                })
+            
+            # Limit to 10 most recent relevant articles
+            if len(news_articles) >= 10:
+                break
+        
+        print(f"Fetched {len(news_articles)} relevant news articles for {ticker} (filtered from {len(news_data)} total)")
         return news_articles
         
     except Exception as e:
