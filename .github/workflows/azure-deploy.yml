@@ -59,8 +59,7 @@ jobs:
       working-directory: ./VIONEX-finance-Ai-Stock-price-predictor-main
       run: |
         python -m pip install --upgrade pip
-        # Create a requirements file for deployment
-        echo "Creating deployment artifacts..."
+        pip install --no-cache-dir -r requirements.txt
 
     - name: Copy build to Flask static folder
       run: |
@@ -75,7 +74,22 @@ jobs:
     - name: Create deployment package
       run: |
         cd VIONEX-finance-Ai-Stock-price-predictor-main
-        zip -r ../deploy.zip . -x ".git/*" -x ".github/*" -x "*__pycache__*" -x "*.pyc" -x "*/node_modules/*" -x "*/frontend/*" -x ".python_packages/*"
+        # Exclude large files and unnecessary directories
+        zip -r ../deploy.zip . \
+          -x ".git/*" \
+          -x ".github/*" \
+          -x "*__pycache__*" \
+          -x "*.pyc" \
+          -x "*/node_modules/*" \
+          -x "*/frontend/*" \
+          -x ".python_packages/*" \
+          -x "logs_dir/*" \
+          -x "*.zip" \
+          -x "artifacts/*" \
+          -x "mlops/*"
+        
+        # Check zip size
+        ls -lh ../deploy.zip
 
     - name: Azure Login
       uses: azure/login@v1
@@ -108,7 +122,7 @@ jobs:
         az webapp config set \
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
           --name "${{ env.AZURE_WEBAPP_NAME }}" \
-          --startup-file "gunicorn --config gunicorn_config.py wsgi:app"
+          --startup-file "gunicorn --bind=0.0.0.0:8000 --timeout 120 --workers 1 --worker-class sync --access-logfile - --error-logfile - wsgi:app"
 
     - name: Deploy to Azure Web App
       run: |

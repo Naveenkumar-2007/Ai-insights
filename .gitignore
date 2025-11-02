@@ -26,6 +26,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.python_packages/
 
 # PyInstaller
 *.manifest
@@ -48,6 +49,10 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+
+# Deployment artifacts
+*.zip
+logs_dir/
 
 # Translations
 *.mo
