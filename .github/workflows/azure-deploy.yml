@@ -77,12 +77,17 @@ jobs:
       run: |
         cat > VIONEX-finance-Ai-Stock-price-predictor-main/startup.sh << 'EOF'
         #!/bin/bash
+        set -e
+        echo "=== Starting application setup ==="
+        cd /home/site/wwwroot
         echo "Installing Python dependencies..."
         pip install --no-cache-dir -r requirements.txt
-        echo "Starting Gunicorn..."
-        gunicorn --bind=0.0.0.0:8000 --timeout 120 --workers 1 --worker-class sync --access-logfile - --error-logfile - wsgi:app
+        echo "Starting Gunicorn server..."
+        exec gunicorn --bind=0.0.0.0:8000 --timeout 120 --workers 1 --worker-class sync --access-logfile - --error-logfile - wsgi:app
         EOF
         chmod +x VIONEX-finance-Ai-Stock-price-predictor-main/startup.sh
+        echo "Created startup.sh:"
+        cat VIONEX-finance-Ai-Stock-price-predictor-main/startup.sh
 
     - name: Create deployment package
       run: |
@@ -142,7 +147,7 @@ jobs:
         az webapp config set \
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
           --name "${{ env.AZURE_WEBAPP_NAME }}" \
-          --startup-file "startup.sh"
+          --startup-file "/home/site/wwwroot/startup.sh"
 
     - name: Deploy to Azure Web App
       run: |
