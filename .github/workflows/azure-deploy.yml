@@ -72,27 +72,11 @@ jobs:
       run: |
         echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > VIONEX-finance-Ai-Stock-price-predictor-main/firebase-admin.json
         chmod 600 VIONEX-finance-Ai-Stock-price-predictor-main/firebase-admin.json
-    
-    - name: Create startup script
-      run: |
-        cat > VIONEX-finance-Ai-Stock-price-predictor-main/startup.sh << 'EOF'
-        #!/bin/bash
-        set -e
-        echo "=== Starting application setup ==="
-        cd /home/site/wwwroot
-        echo "Installing Python dependencies..."
-        pip install --no-cache-dir -r requirements.txt
-        echo "Starting Gunicorn server..."
-        exec gunicorn --bind=0.0.0.0:8000 --timeout 120 --workers 1 --worker-class sync --access-logfile - --error-logfile - wsgi:app
-        EOF
-        chmod +x VIONEX-finance-Ai-Stock-price-predictor-main/startup.sh
-        echo "Created startup.sh:"
-        cat VIONEX-finance-Ai-Stock-price-predictor-main/startup.sh
 
     - name: Create deployment package
       run: |
         cd VIONEX-finance-Ai-Stock-price-predictor-main
-        # Create minimal package without Python packages
+        # Create package including requirements.txt for Oryx build
         zip -r ../deploy.zip . \
           -x ".git/*" \
           -x ".github/*" \
@@ -135,19 +119,19 @@ jobs:
             FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/firebase-admin.json" \
             ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
             ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
-            SCM_DO_BUILD_DURING_DEPLOYMENT="0" \
-            ENABLE_ORYX_BUILD="false" \
-            WEBSITE_RUN_FROM_PACKAGE="0" \
+            SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
+            ENABLE_ORYX_BUILD="true" \
             WEBSITES_PORT="8000" \
             PORT="8000" \
-            WEBSITES_CONTAINER_START_TIME_LIMIT="1800"
+            WEBSITES_CONTAINER_START_TIME_LIMIT="1800" \
+            ORYX_DISABLE_TELEMETRY="true"
         
-        # Set startup command
+        # Set startup command to just gunicorn
         echo "Setting startup command..."
         az webapp config set \
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
           --name "${{ env.AZURE_WEBAPP_NAME }}" \
-          --startup-file "/home/site/wwwroot/startup.sh"
+          --startup-file "gunicorn --bind=0.0.0.0:8000 --timeout 120 --workers 1 --worker-class sync --access-logfile - --error-logfile - wsgi:app"
 
     - name: Deploy to Azure Web App
       run: |
