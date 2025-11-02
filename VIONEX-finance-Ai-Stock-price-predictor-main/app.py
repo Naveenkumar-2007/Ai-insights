@@ -302,8 +302,7 @@ def get_stock_data(ticker):
             suggestions = [sym for sym in suggestion_candidates if sym != requested_ticker][:3]
 
             detail_parts = []
-            if provider_message:
-                detail_parts.append(provider_message)
+            # Don't expose internal API provider messages to users
             if suggestions:
                 detail_parts.append(f"Try: {', '.join(suggestions)}")
 

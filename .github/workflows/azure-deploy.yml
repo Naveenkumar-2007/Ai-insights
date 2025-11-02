@@ -105,6 +105,7 @@ jobs:
           --settings \
             TWELVE_DATA_API_KEY="${{ secrets.TWELVE_DATA_API_KEY }}" \
             FINNHUB_API_KEY="${{ secrets.FINNHUB_API_KEY }}" \
+            ALPHA_VANTAGE_API_KEY="${{ secrets.ALPHA_VANTAGE_API_KEY }}" \
             FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/firebase-admin.json" \
             ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
             ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \

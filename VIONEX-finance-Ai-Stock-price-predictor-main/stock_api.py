@@ -1,5 +1,5 @@
 """
-Stock Data API Module using Twelve Data
+Stock Data API Module using Twelve Data and Alpha Vantage
 Provides reliable stock data access from cloud hosting
 """
 import requests
@@ -7,6 +7,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+import logging
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 # Optional fallback provider
 try:
@@ -16,6 +20,11 @@ except ImportError:  # pragma: no cover - handled gracefully at runtime
 
 # Load environment variables
 load_dotenv()
+
+# API Configuration
+TWELVE_DATA_API_KEY = os.getenv('TWELVE_DATA_API_KEY')
+ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
+FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY')
 
 YFINANCE_EXCHANGE_SUFFIXES = {
     'NSE': '.NS',
@@ -81,6 +90,11 @@ def _require_env_var(var_name: str) -> str:
 
 TWELVE_DATA_API_KEY = _require_env_var('TWELVE_DATA_API_KEY')
 BASE_URL = 'https://api.twelvedata.com'
+
+# Alpha Vantage API Configuration (optional fallback)
+if not ALPHA_VANTAGE_API_KEY:
+    ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
+    logger.info("Alpha Vantage API key loaded for fallback support" if ALPHA_VANTAGE_API_KEY else "Alpha Vantage not configured - fallback unavailable")
 
 # Finnhub API Configuration
 FINNHUB_API_KEY = _require_env_var('FINNHUB_API_KEY')
@@ -324,37 +338,100 @@ def get_stock_history(
         provider_error = f'Error processing {ticker} data: {exc}'
         print(provider_error)
 
-    # Attempt Yahoo Finance fallback when primary provider fails or returns insufficient data
+    # Attempt Alpha Vantage fallback when Twelve Data fails or returns insufficient data
     needs_fallback = data_frame.empty or len(data_frame) < 2
-    allow_yfinance = str(interval).lower() in {'1day', '1d', 'daily'}
+    allow_fallback = str(interval).lower() in {'1day', '1d', 'daily'}
 
-    if needs_fallback and allow_yfinance:
-        fallback_df, fallback_symbol, fallback_message = _get_stock_history_yfinance(
-            ticker,
-            days=days,
-            exchange=exchange,
-            country=country
-        )
-
-        if not fallback_df.empty:
-            info['symbol'] = fallback_symbol or info['symbol']
-            info['source'] = 'yfinance'
-            if provider_error:
-                info['provider_message'] = provider_error
-            data_frame = fallback_df
-            needs_fallback = False
-        else:
-            combined_message = '; '.join(
-                message for message in [provider_error, fallback_message] if message
-            )
-            if combined_message:
-                info['provider_message'] = combined_message
-
-    elif needs_fallback and not allow_yfinance and provider_error:
-        info['provider_message'] = provider_error
-
+    # Alpha Vantage fallback for stocks not available on Twelve Data (cloud-friendly, no Yahoo Finance)
+    if needs_fallback and allow_fallback and ALPHA_VANTAGE_API_KEY:
+        logger.info(f"🔄 Trying Alpha Vantage fallback for {ticker}...")
+        print(f"Twelve Data unavailable for {ticker}, trying Alpha Vantage...")
+        
+        # Try ticker with various exchange suffixes for international stocks
+        symbols_to_try = [ticker]
+        
+        # If no dot in ticker, try common suffixes (especially for Indian stocks)
+        if '.' not in ticker:
+            symbols_to_try.extend([
+                f"{ticker}.NS",  # NSE (India)
+                f"{ticker}.BO",  # BSE (India)
+                f"{ticker}.L",   # London
+                f"{ticker}.TO",  # Toronto
+                f"{ticker}.AX",  # Australia
+            ])
+        
+        for symbol_attempt in symbols_to_try:
+            try:
+                av_url = "https://www.alphavantage.co/query"
+                av_params = {
+                    'function': 'TIME_SERIES_DAILY',
+                    'symbol': symbol_attempt,
+                    'apikey': ALPHA_VANTAGE_API_KEY,
+                    'outputsize': 'compact'  # Last 100 data points
+                }
+                
+                print(f"  Trying Alpha Vantage with {symbol_attempt}...")
+                response = requests.get(av_url, params=av_params, timeout=15)
+                av_data = response.json()
+                
+                if 'Time Series (Daily)' in av_data:
+                    time_series = av_data['Time Series (Daily)']
+                    
+                    # Convert to DataFrame
+                    df_data = []
+                    for date_str, values in time_series.items():
+                        df_data.append({
+                            'datetime': datetime.strptime(date_str, '%Y-%m-%d'),
+                            'open': float(values['1. open']),
+                            'high': float(values['2. high']),
+                            'low': float(values['3. low']),
+                            'close': float(values['4. close']),
+                            'volume': int(values['5. volume'])
+                        })
+                    
+                    if df_data:
+                        fallback_df = pd.DataFrame(df_data)
+                        fallback_df.set_index('datetime', inplace=True)
+                        fallback_df.sort_index(inplace=True)
+                        
+                        # Limit to requested days
+                        if days and len(fallback_df) > days:
+                            fallback_df = fallback_df.tail(days)
+                        
+                        # Rename columns to match expected format
+                        fallback_df.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                        
+                        # Add required columns
+                        fallback_df['Dividends'] = 0.0
+                        fallback_df['Stock Splits'] = 0.0
+                        
+                        data_frame = fallback_df
+                        info['source'] = 'alphavantage'
+                        info['symbol'] = symbol_attempt  # Update to the symbol that worked
+                        needs_fallback = False
+                        
+                        logger.info(f"✅ Alpha Vantage: Successfully fetched {len(data_frame)} data points for {symbol_attempt}")
+                        print(f"✅ Alpha Vantage: Successfully fetched {len(data_frame)} data points for {symbol_attempt}")
+                        break  # Exit the loop, we found data!
+                        
+                else:
+                    error_msg = av_data.get('Note') or av_data.get('Error Message')
+                    if error_msg:
+                        print(f"  {symbol_attempt}: {error_msg}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Alpha Vantage error for {symbol_attempt}: {str(e)}")
+                print(f"  {symbol_attempt} error: {str(e)}")
+    
+    if needs_fallback:
+        # If both Twelve Data and Alpha Vantage failed, provide user-friendly error
+        # Don't expose internal API details, limits, or provider-specific messages
+        info['provider_message'] = f"Unable to retrieve data for {ticker}. Please verify the stock symbol is correct."
+    
     if not needs_fallback and info['provider_message'] is None and provider_error:
-        info['provider_message'] = provider_error
+        # Log provider error for debugging but don't expose to user
+        logger.warning(f"Provider error (not shown to user): {provider_error}")
+        info['provider_message'] = None  # Don't expose internal errors
 
     if return_info:
         return data_frame, info
@@ -567,6 +644,7 @@ if __name__ == "__main__":
 def get_company_news(ticker, days=7):
     """
     Fetch company news from Finnhub API - ONLY news specifically about the searched stock
+    Uses company logo for ALL news articles (with fallback to default logo)
     
     Args:
         ticker (str): Stock symbol
@@ -576,10 +654,11 @@ def get_company_news(ticker, days=7):
         list: List of news articles with title, summary, url, source, image, and timestamp
     """
     try:
-        print(f"Fetching news for {ticker} from Finnhub...")
+        print(f"Fetching news for {ticker} from Finnhub API only...")
         
-        # Get company profile first to get the company name for better filtering
+        # Get company profile to get company name AND logo
         company_name = None
+        company_logo = None
         try:
             profile_url = f'{FINNHUB_BASE_URL}/stock/profile2'
             profile_params = {'symbol': ticker, 'token': FINNHUB_API_KEY}
@@ -587,14 +666,23 @@ def get_company_news(ticker, days=7):
             if profile_response.status_code == 200:
                 profile_data = profile_response.json()
                 company_name = profile_data.get('name', '').lower()
-                print(f"Company name: {company_name}")
+                company_logo = profile_data.get('logo', '')
+                
+                # If no logo from profile, try alternative logo URL
+                if not company_logo:
+                    company_logo = f"https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/{ticker.upper()}.png"
+                
+                print(f"Company: {company_name}, Logo: {company_logo}")
         except Exception as e:
             print(f"Could not fetch company profile: {e}")
+            # Use default logo URL even if profile fails
+            company_logo = f"https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/{ticker.upper()}.png"
         
         # Calculate date range
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         
+        # Fetch news from Finnhub API ONLY (no Yahoo Finance)
         url = f'{FINNHUB_BASE_URL}/company-news'
         params = {
             'symbol': ticker,
@@ -603,6 +691,7 @@ def get_company_news(ticker, days=7):
             'token': FINNHUB_API_KEY
         }
         
+        print(f"Using Finnhub API: {url} (No Yahoo Finance)")
         response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
         news_data = response.json()
@@ -632,26 +721,42 @@ def get_company_news(ticker, days=7):
             
             # Only add relevant articles
             if is_relevant:
+                # Get timestamp and format date properly
+                timestamp = article.get('datetime', 0)
+                try:
+                    # Convert Unix timestamp to readable date
+                    if timestamp > 0:
+                        date_obj = datetime.fromtimestamp(timestamp)
+                        formatted_date = date_obj.strftime('%Y-%m-%d %H:%M')
+                    else:
+                        formatted_date = 'Unknown date'
+                except Exception as e:
+                    print(f"Error formatting date: {e}")
+                    formatted_date = 'Unknown date'
+                
                 news_articles.append({
                     'headline': article.get('headline', 'No headline'),
                     'summary': article.get('summary', 'No summary available'),
-                    'source': article.get('source', 'Unknown'),
+                    'source': 'Finnhub',  # Always show Finnhub as source (no Yahoo)
                     'url': article.get('url', '#'),
-                    'image': article.get('image', ''),
-                    'datetime': datetime.fromtimestamp(article.get('datetime', 0)).strftime('%Y-%m-%d %H:%M'),
-                    'timestamp': article.get('datetime', 0),
-                    'related': article.get('related', ticker)  # Ensure it shows the ticker
+                    'image': company_logo,  # ALWAYS use company logo for consistency
+                    'datetime': formatted_date,  # Properly formatted date
+                    'timestamp': timestamp,  # Keep original timestamp for sorting
+                    'related': ticker.upper(),  # Show the ticker being searched
+                    'company_name': company_name or ticker  # Include company name
                 })
             
             # Limit to 10 most recent relevant articles
             if len(news_articles) >= 10:
                 break
         
-        print(f"Fetched {len(news_articles)} relevant news articles for {ticker} (filtered from {len(news_data)} total)")
+        print(f"Fetched {len(news_articles)} relevant news articles for {ticker} from Finnhub only")
+        print(f"All articles using company logo: {company_logo}")
+        print(f"All data from Finnhub API - No Yahoo Finance used")
         return news_articles
         
     except Exception as e:
-        print(f"Error fetching news from Finnhub: {e}")
+        print(f"Error fetching news from Finnhub API: {e}")
         return []
 
 
