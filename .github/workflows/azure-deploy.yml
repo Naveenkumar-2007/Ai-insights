@@ -59,8 +59,8 @@ jobs:
       working-directory: ./VIONEX-finance-Ai-Stock-price-predictor-main
       run: |
         python -m pip install --upgrade pip
-        rm -rf .python_packages
-        pip install --target ./.python_packages/lib/site-packages -r requirements.txt
+        # Create a requirements file for deployment
+        echo "Creating deployment artifacts..."
 
     - name: Copy build to Flask static folder
       run: |
@@ -75,7 +75,7 @@ jobs:
     - name: Create deployment package
       run: |
         cd VIONEX-finance-Ai-Stock-price-predictor-main
-        zip -r ../deploy.zip . -x ".git/*" -x ".github/*" -x "*__pycache__*" -x "*.pyc" -x "*/node_modules/*" -x "*/frontend/*"
+        zip -r ../deploy.zip . -x ".git/*" -x ".github/*" -x "*__pycache__*" -x "*.pyc" -x "*/node_modules/*" -x "*/frontend/*" -x ".python_packages/*"
 
     - name: Azure Login
       uses: azure/login@v1
@@ -96,9 +96,9 @@ jobs:
             FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/firebase-admin.json" \
             ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
             ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
-            SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
-            ENABLE_ORYX_BUILD="false" \
-            PYTHONPATH="/home/site/wwwroot/.python_packages/lib/site-packages" \
+            SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
+            ENABLE_ORYX_BUILD="true" \
+            ORYX_BUILD_TIMEOUT="1800" \
             WEBSITES_PORT="8000" \
             PORT="8000" \
             WEBSITES_CONTAINER_START_TIME_LIMIT="1800"
