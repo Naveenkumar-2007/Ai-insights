@@ -114,40 +114,15 @@ jobs:
         echo "=========================================="
         echo "Deploying to Azure Web App..."
         echo "=========================================="
-        
-        az webapp deployment source config-zip \
+
+        az webapp deploy \
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
           --name "${{ env.AZURE_WEBAPP_NAME }}" \
-          --src deploy.zip \
+          --src-path deploy.zip \
+          --type zip \
+          --restart true \
           --timeout 1800
-            attempts=$((attempts+1))
-            
-            if [ $attempts -lt $max_attempts ]; then
-              echo "⏳ Waiting ${sleep_secs} seconds before retry..."
-              echo "🔄 Restarting app to clear deployment locks..."
-              
-              # Stop and start app to clear locks
-              az webapp stop --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
-              sleep 10
-              az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
-              
-              sleep $sleep_secs
-            else
-              echo "❌ Max attempts reached. Deployment failed."
-              echo "📋 Check deployment logs at: https://aiinsight-fyhyenesh4d2hee9.scm.centralindia-01.azurewebsites.net/api/deployments/latest"
-              exit 1
-            fi
-          fi
-        done
 
-    - name: Verify deployment
-      run: |
-        echo "⏳ Waiting for app to fully start..."
-        sleep 60
-        
-        echo "🔍 Checking application health..."
-        max_health_checks=5
-        for i in $(seq 1 $max_health_checks); do
     - name: Health Check
       run: |
         echo "Waiting for app to start..."
