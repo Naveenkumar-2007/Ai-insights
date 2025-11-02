@@ -98,6 +98,7 @@ jobs:
             ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
             SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
             ENABLE_ORYX_BUILD="false" \
+            PYTHONPATH="/home/site/wwwroot/.python_packages/lib/site-packages" \
             WEBSITES_PORT="8000" \
             PORT="8000" \
             WEBSITES_CONTAINER_START_TIME_LIMIT="1800"
