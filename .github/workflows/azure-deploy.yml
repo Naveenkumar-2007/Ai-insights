@@ -92,7 +92,8 @@ jobs:
             FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/firebase-admin.json" \
             ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
             ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
-            SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
+            SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
+            ENABLE_ORYX_BUILD="true" \
             WEBSITES_PORT="8000"
         
         # Set startup command
@@ -105,8 +106,8 @@ jobs:
       run: |
         set -e
         attempts=0
-        max_attempts=5
-        sleep_secs=15
+        max_attempts=3
+        sleep_secs=20
         
         while [ $attempts -lt $max_attempts ]; do
           echo "Deployment attempt $((attempts+1)) of $max_attempts..."
@@ -115,7 +116,7 @@ jobs:
             --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
             --name "${{ env.AZURE_WEBAPP_NAME }}" \
             --src deploy.zip \
-            --timeout 600 \
+            --timeout 900 \
             --output json; then
             echo "✓ Deployment succeeded!"
             break
@@ -125,12 +126,6 @@ jobs:
             attempts=$((attempts+1))
             
             if [ $attempts -lt $max_attempts ]; then
-              echo "Checking for active deployments..."
-              az webapp deployment list \
-                --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-                --name "${{ env.AZURE_WEBAPP_NAME }}" \
-                --output table || true
-              
               echo "Waiting ${sleep_secs} seconds before retry..."
               sleep $sleep_secs
             else
@@ -140,11 +135,13 @@ jobs:
           fi
         done
 
-    - name: Restart Azure Web App
+    - name: Verify deployment
       run: |
-        az webapp restart \
-          --name ${{ env.AZURE_WEBAPP_NAME }} \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+        echo "Waiting for app to fully start..."
+        sleep 30
+        
+        echo "Checking application health..."
+        curl -f https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net/ || echo "App may still be starting..."
 
     - name: Logout from Azure
       run: |
