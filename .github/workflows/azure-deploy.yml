@@ -99,7 +99,8 @@ jobs:
             ENABLE_ORYX_BUILD="true" \
             WEBSITES_PORT="8000" \
             PORT="8000" \
-            WEBSITES_CONTAINER_START_TIME_LIMIT="600"
+            WEBSITES_CONTAINER_START_TIME_LIMIT="1800" \
+            ORYX_BUILD_TIMEOUT="1800"
         
         # Set startup command
         echo "Setting startup command..."
@@ -118,7 +119,7 @@ jobs:
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
           --name "${{ env.AZURE_WEBAPP_NAME }}" \
           --src deploy.zip \
-          --timeout 900
+          --timeout 1800
             attempts=$((attempts+1))
             
             if [ $attempts -lt $max_attempts ]; then
