@@ -14,12 +14,12 @@ backlog = 2048
 workers = 1  # Use 1 worker to avoid multiple model loads (saves memory)
 worker_class = 'sync'
 worker_connections = 1000
-timeout = 300  # 5 minutes - reduced for faster startup detection
+timeout = 600  # 10 minutes timeout to handle cold starts
 keepalive = 5
-graceful_timeout = 60  # Reduced graceful timeout
+graceful_timeout = 120
 
-# Pre-load app before forking workers
-preload_app = True
+# Disable preload to allow lazy loading to work properly
+preload_app = False
 
 # Logging
 loglevel = 'info'
