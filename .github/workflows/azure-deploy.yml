@@ -59,7 +59,8 @@ jobs:
       working-directory: ./VIONEX-finance-Ai-Stock-price-predictor-main
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        rm -rf .python_packages
+        pip install --target ./.python_packages/lib/site-packages -r requirements.txt
 
     - name: Copy build to Flask static folder
       run: |
@@ -95,12 +96,11 @@ jobs:
             FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/firebase-admin.json" \
             ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
             ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
-            SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
-            ENABLE_ORYX_BUILD="true" \
+            SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
+            ENABLE_ORYX_BUILD="false" \
             WEBSITES_PORT="8000" \
             PORT="8000" \
-            WEBSITES_CONTAINER_START_TIME_LIMIT="1800" \
-            ORYX_BUILD_TIMEOUT="1800"
+            WEBSITES_CONTAINER_START_TIME_LIMIT="1800"
         
         # Set startup command
         echo "Setting startup command..."

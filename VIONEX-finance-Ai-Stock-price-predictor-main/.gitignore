@@ -208,3 +208,4 @@ cython_debug/
 mlruns/
 *.h5
 *.pkl
+.python_packages/
