@@ -81,22 +81,8 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Stop ongoing deployments and configure app
+    - name: Configure Azure App Settings
       run: |
-        # Stop the app to clear any ongoing deployments
-        echo "Stopping app to clear deployment locks..."
-        az webapp stop --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
-        
-        # Wait for app to stop
-        sleep 10
-        
-        # Remove WEBSITE_RUN_FROM_PACKAGE if it exists
-        echo "Removing WEBSITE_RUN_FROM_PACKAGE setting..."
-        az webapp config appsettings delete \
-          --name ${{ env.AZURE_WEBAPP_NAME }} \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --setting-names WEBSITE_RUN_FROM_PACKAGE || true
-        
         # Configure app settings
         echo "Configuring app settings..."
         az webapp config appsettings set \
@@ -112,42 +98,27 @@ jobs:
             SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
             ENABLE_ORYX_BUILD="true" \
             WEBSITES_PORT="8000" \
-            PORT="8000"
+            PORT="8000" \
+            WEBSITES_CONTAINER_START_TIME_LIMIT="600"
         
-        # Set startup command to use gunicorn config file
+        # Set startup command
         echo "Setting startup command..."
         az webapp config set \
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
           --name "${{ env.AZURE_WEBAPP_NAME }}" \
           --startup-file "gunicorn --config gunicorn_config.py wsgi:app"
-        
-        # Start the app
-        echo "Starting app..."
-        az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
 
-    - name: Deploy to Azure Web App with retry
+    - name: Deploy to Azure Web App
       run: |
-        set -e
-        attempts=0
-        max_attempts=3
-        sleep_secs=30
+        echo "=========================================="
+        echo "Deploying to Azure Web App..."
+        echo "=========================================="
         
-        while [ $attempts -lt $max_attempts ]; do
-          echo "=========================================="
-          echo "Deployment attempt $((attempts+1)) of $max_attempts..."
-          echo "=========================================="
-          
-          # Try to deploy
-          if az webapp deployment source config-zip \
-            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
-            --name "${{ env.AZURE_WEBAPP_NAME }}" \
-            --src deploy.zip \
-            --timeout 1200; then
-            echo "✅ Deployment succeeded!"
-            exit 0
-          else
-            rc=$?
-            echo "❌ Deployment attempt $((attempts+1)) failed with exit code $rc"
+        az webapp deployment source config-zip \
+          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+          --name "${{ env.AZURE_WEBAPP_NAME }}" \
+          --src deploy.zip \
+          --timeout 900
             attempts=$((attempts+1))
             
             if [ $attempts -lt $max_attempts ]; then
@@ -174,6 +145,13 @@ jobs:
         sleep 60
         
         echo "🔍 Checking application health..."
+        max_health_checks=5
+        for i in $(seq 1 $max_health_checks); do
+    - name: Health Check
+      run: |
+        echo "Waiting for app to start..."
+        sleep 60
+        
         max_health_checks=5
         for i in $(seq 1 $max_health_checks); do
           echo "Health check attempt $i of $max_health_checks..."
