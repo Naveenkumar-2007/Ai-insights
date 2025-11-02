@@ -1,6 +1,6 @@
 """
 Gunicorn configuration for Azure App Service
-Optimized for ML model loading with TensorFlow/Keras
+Optimized for fast cold starts on Basic tier
 """
 
 import multiprocessing
@@ -8,23 +8,23 @@ import os
 
 # Server Socket - Get port from environment
 bind = f"0.0.0.0:{os.environ.get('PORT', '8000')}"
-backlog = 2048
+backlog = 512
 
-# Worker Processes
-workers = 1  # Use 1 worker to avoid multiple model loads (saves memory)
+# Worker Processes - Single worker for minimal memory footprint
+workers = 1
 worker_class = 'sync'
-worker_connections = 1000
-timeout = 600  # 10 minutes timeout to handle cold starts
-keepalive = 5
-graceful_timeout = 120
+worker_connections = 100
+timeout = 120  # 2 minutes - fast startup required
+keepalive = 2
+graceful_timeout = 30
 
-# Disable preload to allow lazy loading to work properly
+# CRITICAL: Disable preload to allow lazy loading
 preload_app = False
 
 # Logging
 loglevel = 'info'
-accesslog = '-'  # Log to stdout
-errorlog = '-'   # Log to stderr
+accesslog = '-'
+errorlog = '-'
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
 # Process Naming
@@ -38,14 +38,12 @@ user = None
 group = None
 tmp_upload_dir = None
 
-# Preload optimization
+# Startup hook
 def on_starting(server):
-    """
-    Called just before the master process is initialized.
-    """
-    server.log.info("=" * 60)
-    server.log.info("Starting AI Insights Stock Prediction App")
-    server.log.info("Loading TensorFlow and LSTM model...")
+    """Called just before the master process is initialized."""
+    server.log.info("="  * 60)
+    server.log.info("AI Insights - Fast Startup Mode")
+    server.log.info("ML libraries will be loaded on first use")
     server.log.info("Port: %s", os.environ.get('PORT', '8000'))
     server.log.info("=" * 60)
 
