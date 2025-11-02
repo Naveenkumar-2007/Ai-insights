@@ -75,7 +75,7 @@ jobs:
     - name: Create deployment package
       run: |
         cd VIONEX-finance-Ai-Stock-price-predictor-main
-        zip -r ../deploy.zip . -x "*.git*" -x "*__pycache__*" -x "*.pyc" -x "*/node_modules/*" -x "*/frontend/*"
+        zip -r ../deploy.zip . -x ".git/*" -x ".github/*" -x "*__pycache__*" -x "*.pyc" -x "*/node_modules/*" -x "*/frontend/*"
 
     - name: Azure Login
       uses: azure/login@v1
