@@ -4,8 +4,9 @@ Flask-CORS>=4.0.0
 gunicorn==21.2.0
 Werkzeug==3.0.1
 
-# Machine Learning - Use CPU-only TensorFlow with version range for faster builds
-tensorflow-cpu>=2.16.0,<2.17.0
+# Machine Learning - TensorFlow commented out for initial deployment on Basic tier
+# Uncomment when upgraded to Standard tier or use Container deployment
+# tensorflow-cpu>=2.16.0,<2.17.0
 
 # Data Processing - Lighter versions
 scikit-learn>=1.3.0,<1.4.0
