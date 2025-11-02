@@ -736,4 +736,6 @@ def predict_with_technical_analysis(hist, current_price):
         return current_price * 1.002
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Get port from environment variable (Azure sets this)
+    port = int(os.environ.get('PORT', 8000))
+    app.run(host='0.0.0.0', port=port, debug=False)
