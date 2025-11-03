@@ -212,36 +212,51 @@ def test_route_fix():
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    """Serve React frontend with proper caching and SPA routing support"""
-    # Define known React client-side routes
-    REACT_ROUTES = ['prediction', 'dashboard', 'portfolio', 'watchlist', 'login', 'signup']
-    
-    # If this is a known React route, serve index.html directly
-    if path in REACT_ROUTES:
-        response = send_from_directory(app.static_folder, 'index.html')
-        response.cache_control.no_cache = True
-        response.cache_control.no_store = True
-        response.cache_control.must_revalidate = True
-        return response
-    
-    # Skip API routes - they're handled by dedicated route handlers
+    """Serve React frontend with proper caching and SPA routing support
+    This function will:
+    - Serve static files when they exist
+    - Serve index.html for known SPA routes (so client-side routing works)
+    - Return JSON 404 for API routes that aren't found
+    """
+
+    app.logger.debug(f"serve() called with path='{path}'")
+
+    # Explicitly handle the common SPA routes first to avoid any platform-level routing
+    if path in ('prediction', 'prediction/', 'dashboard', 'portfolio', 'watchlist', 'login', 'signup'):
+        try:
+            response = send_from_directory(app.static_folder, 'index.html')
+            response.cache_control.no_cache = True
+            response.cache_control.no_store = True
+            response.cache_control.must_revalidate = True
+            app.logger.debug(f"Serving index.html for SPA route: {path}")
+            return response
+        except Exception as e:
+            app.logger.error(f"Error serving index.html for SPA route {path}: {e}")
+            return jsonify({'error': 'Application error', 'message': str(e)}), 500
+
+    # Skip API routes - let API handlers respond (or return 404)
     if path.startswith('api/'):
+        app.logger.debug(f"API path requested that was not matched: {path}")
         return jsonify({'error': 'API endpoint not found'}), 404
-    
-    # Try to serve static files if they exist
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        response = send_from_directory(app.static_folder, path)
-        # Cache static assets for 1 year
-        if path.startswith('static/'):
-            response.cache_control.max_age = 31536000
-            response.cache_control.public = True
-        return response
-    
-    # For all other routes (React client-side routes), serve index.html
-    # This enables React Router to handle any other routes
+
+    # Serve static assets if they exist
+    static_path = os.path.join(app.static_folder, path)
+    if path != '' and os.path.exists(static_path):
+        try:
+            response = send_from_directory(app.static_folder, path)
+            if path.startswith('static/'):
+                response.cache_control.max_age = 31536000
+                response.cache_control.public = True
+            app.logger.debug(f"Served static file: {path}")
+            return response
+        except Exception as e:
+            app.logger.error(f"Error serving static file {path}: {e}")
+            # Fallthrough to serve index.html
+
+    # Default: serve index.html for all other client-side routes
     try:
+        app.logger.debug(f"Falling back to index.html for path: {path}")
         response = send_from_directory(app.static_folder, 'index.html')
-        # Don't cache index.html
         response.cache_control.no_cache = True
         response.cache_control.no_store = True
         response.cache_control.must_revalidate = True
