@@ -198,11 +198,23 @@ def health_check():
         'timestamp': datetime.now().isoformat()
     })
 
+
 # Serve React App (with caching)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
     """Serve React frontend with proper caching and SPA routing support"""
+    # Define known React client-side routes
+    REACT_ROUTES = ['prediction', 'dashboard', 'portfolio', 'watchlist', 'login', 'signup']
+    
+    # If this is a known React route, serve index.html directly
+    if path in REACT_ROUTES:
+        response = send_from_directory(app.static_folder, 'index.html')
+        response.cache_control.no_cache = True
+        response.cache_control.no_store = True
+        response.cache_control.must_revalidate = True
+        return response
+    
     # Skip API routes - they're handled by dedicated route handlers
     if path.startswith('api/'):
         return jsonify({'error': 'API endpoint not found'}), 404
@@ -217,7 +229,7 @@ def serve(path):
         return response
     
     # For all other routes (React client-side routes), serve index.html
-    # This enables React Router to handle /prediction, /dashboard, etc.
+    # This enables React Router to handle any other routes
     try:
         response = send_from_directory(app.static_folder, 'index.html')
         # Don't cache index.html

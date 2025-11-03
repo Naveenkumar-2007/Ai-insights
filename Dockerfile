@@ -64,6 +64,10 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn gevent requests
 # Copy application code
 COPY --chown=appuser:appuser VIONEX-finance-Ai-Stock-price-predictor-main/ .
 
+# Clean any Python bytecode files to ensure fresh code execution
+RUN find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true && \
+    find . -type f -name '*.pyc' -delete 2>/dev/null || true
+
 # Copy frontend build from previous stage
 COPY --from=frontend-builder --chown=appuser:appuser /build/build ./build
 
