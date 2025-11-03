@@ -195,9 +195,18 @@ def health_check():
     return jsonify({
         'success': True,
         'status': 'healthy',
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'code_version': 'v3-with-explicit-prediction-route'
     })
 
+# TEST ROUTE - To verify new code is deployed
+@app.route('/test-route-fix')
+def test_route_fix():
+    return jsonify({
+        'message': 'NEW ROUTING CODE IS DEPLOYED',
+        'prediction_route_explicitly_handled': True,
+        'timestamp': datetime.now().isoformat()
+    })
 
 # Serve React App (with caching)
 @app.route('/', defaults={'path': ''})
