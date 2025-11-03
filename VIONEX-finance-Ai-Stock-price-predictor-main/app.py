@@ -202,25 +202,32 @@ def health_check():
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    """Serve React frontend with proper caching"""
+    """Serve React frontend with proper caching and SPA routing support"""
+    # Skip API routes - they're handled by dedicated route handlers
+    if path.startswith('api/'):
+        return jsonify({'error': 'API endpoint not found'}), 404
+    
+    # Try to serve static files if they exist
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        response = send_from_directory(app.static_folder, path)
+        # Cache static assets for 1 year
+        if path.startswith('static/'):
+            response.cache_control.max_age = 31536000
+            response.cache_control.public = True
+        return response
+    
+    # For all other routes (React client-side routes), serve index.html
+    # This enables React Router to handle /prediction, /dashboard, etc.
     try:
-        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-            response = send_from_directory(app.static_folder, path)
-            # Cache static assets for 1 year
-            if path.startswith('static/'):
-                response.cache_control.max_age = 31536000
-                response.cache_control.public = True
-            return response
-        else:
-            response = send_from_directory(app.static_folder, 'index.html')
-            # Don't cache index.html
-            response.cache_control.no_cache = True
-            response.cache_control.no_store = True
-            response.cache_control.must_revalidate = True
-            return response
+        response = send_from_directory(app.static_folder, 'index.html')
+        # Don't cache index.html
+        response.cache_control.no_cache = True
+        response.cache_control.no_store = True
+        response.cache_control.must_revalidate = True
+        return response
     except Exception as e:
-        app.logger.error(f"Error serving static file {path}: {e}")
-        return jsonify({'error': 'Page not found'}), 404
+        app.logger.error(f"Error serving index.html for path {path}: {e}")
+        return jsonify({'error': 'Application error', 'message': str(e)}), 500
 
 # API Routes
 @app.route('/api/search')
