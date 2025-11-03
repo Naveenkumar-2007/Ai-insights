@@ -208,6 +208,47 @@ def test_route_fix():
         'timestamp': datetime.now().isoformat()
     })
 
+# EXPLICIT React SPA Routes - Handle each React page route explicitly
+@app.route('/prediction')
+@app.route('/prediction/')
+def prediction_page():
+    """Serve React app for prediction page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+@app.route('/dashboard')
+@app.route('/dashboard/')
+def dashboard_page():
+    """Serve React app for dashboard page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+@app.route('/portfolio')
+@app.route('/portfolio/')
+def portfolio_page():
+    """Serve React app for portfolio page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+@app.route('/watchlist')
+@app.route('/watchlist/')
+def watchlist_page():
+    """Serve React app for watchlist page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
 # Serve React App (with caching)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
