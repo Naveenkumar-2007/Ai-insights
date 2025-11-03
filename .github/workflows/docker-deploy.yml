@@ -49,12 +49,7 @@ jobs:
         REACT_APP_FIREBASE_CLIENT_ID: 1075191660465-v9p81sed1obo0aolvm1juc2mjc8a9hol.apps.googleusercontent.com
         REACT_APP_ADMIN_EMAILS: naveenkumarchapala123@gmail.com
 
-    - name: Copy frontend build to backend
-      run: |
-        cp -r frontend/build VIONEX-finance-Ai-Stock-price-predictor-main/
-
     - name: Build and push Docker image
-      working-directory: ./VIONEX-finance-Ai-Stock-price-predictor-main
       run: |
         IMAGE_TAG=${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
         IMAGE_LATEST=${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
