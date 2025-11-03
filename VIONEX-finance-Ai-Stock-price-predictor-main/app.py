@@ -209,10 +209,72 @@ def test_route_fix():
     })
 
 # EXPLICIT React SPA Routes - Handle each React page route explicitly
+# This ensures page refreshes work correctly for all client-side routes
+
 @app.route('/prediction')
 @app.route('/prediction/')
 def prediction_page():
     """Serve React app for prediction page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+@app.route('/about')
+@app.route('/about/')
+def about_page():
+    """Serve React app for about page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+@app.route('/profile')
+@app.route('/profile/')
+def profile_page():
+    """Serve React app for profile/account page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+@app.route('/login')
+@app.route('/login/')
+def login_page():
+    """Serve React app for login page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+@app.route('/register')
+@app.route('/register/')
+def register_page():
+    """Serve React app for register page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+@app.route('/forgot-password')
+@app.route('/forgot-password/')
+def forgot_password_page():
+    """Serve React app for forgot password page"""
+    response = send_from_directory(app.static_folder, 'index.html')
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+@app.route('/change-password')
+@app.route('/change-password/')
+def change_password_page():
+    """Serve React app for change password page"""
     response = send_from_directory(app.static_folder, 'index.html')
     response.cache_control.no_cache = True
     response.cache_control.no_store = True
