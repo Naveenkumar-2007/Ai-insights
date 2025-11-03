@@ -45,35 +45,35 @@ const About = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-brand-50 py-12">
+    <div className="min-h-screen bg-brand-50 py-8 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Hero Section */}
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 rounded-2xl mb-6 shadow-lg">
-            <Brain className="w-10 h-10 text-white" />
+        <div className="text-center mb-10 sm:mb-16">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 rounded-2xl mb-4 sm:mb-6 shadow-lg">
+            <Brain className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
           </div>
-          <h1 className="text-5xl lg:text-6xl font-bold text-brand-text mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-brand-text mb-4 sm:mb-6 px-4">
             About AI Insights
           </h1>
-          <p className="text-xl text-brand-muted max-w-3xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg lg:text-xl text-brand-muted max-w-3xl mx-auto leading-relaxed px-4">
             Your intelligent companion for smarter stock market investments. We combine cutting-edge 
             artificial intelligence with comprehensive market analysis to help you make informed trading decisions.
           </p>
         </div>
 
         {/* Mission Statement */}
-        <div className="bg-gradient-to-br from-brand-600 via-brand-500 to-brand-700 rounded-3xl p-12 mb-16 text-white shadow-2xl">
+        <div className="bg-gradient-to-br from-brand-600 via-brand-500 to-brand-700 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 mb-10 sm:mb-16 text-white shadow-2xl">
           <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-6 flex items-center justify-center gap-3">
-              <Award className="w-10 h-10" />
-              Our Mission
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6 flex items-center justify-center gap-2 sm:gap-3">
+              <Award className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10" />
+              <span>Our Mission</span>
             </h2>
-            <p className="text-lg text-brand-50 leading-relaxed mb-6">
+            <p className="text-sm sm:text-base lg:text-lg text-brand-50 leading-relaxed mb-4 sm:mb-6">
               We believe that powerful financial tools should be accessible to everyone. Our mission 
               is to democratize stock market intelligence by providing professional-grade analysis 
               and predictions at your fingertips.
             </p>
-            <p className="text-lg text-brand-50 leading-relaxed">
+            <p className="text-sm sm:text-base lg:text-lg text-brand-50 leading-relaxed">
               Whether you're a seasoned trader or just starting your investment journey, AI Stock 
               Predictor empowers you with the insights needed to make confident, data-driven decisions 
               in today's fast-paced financial markets.
@@ -82,71 +82,71 @@ const About = () => {
         </div>
 
         {/* What We Offer */}
-        <div className="mb-16">
-          <h2 className="text-4xl font-bold text-brand-text text-center mb-12">
+        <div className="mb-10 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-brand-text text-center mb-8 sm:mb-12 px-4">
             What We Offer
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="bg-white p-8 rounded-2xl shadow-lg border border-brand-100/60 hover:shadow-2xl transition-all transform hover:-translate-y-2"
+                className="bg-white p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-brand-100/60 hover:shadow-2xl transition-all transform hover:-translate-y-2 active-scale"
               >
-                <div className="bg-gradient-to-br from-brand-500 to-brand-600 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
-                  <feature.icon className="w-7 h-7 text-white" />
+                <div className="bg-gradient-to-br from-brand-500 to-brand-600 w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center mb-4 sm:mb-6">
+                  <feature.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-brand-text mb-3">{feature.title}</h3>
-                <p className="text-brand-muted leading-relaxed">{feature.description}</p>
+                <h3 className="text-lg sm:text-xl font-bold text-brand-text mb-2 sm:mb-3">{feature.title}</h3>
+                <p className="text-sm sm:text-base text-brand-muted leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Why Choose Us */}
-        <div className="bg-gradient-to-br from-white to-brand-50 rounded-3xl p-12 mb-16 border border-brand-100/70">
-          <h2 className="text-4xl font-bold text-brand-text text-center mb-12">
+        <div className="bg-gradient-to-br from-white to-brand-50 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 mb-10 sm:mb-16 border border-brand-100/70">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-brand-text text-center mb-8 sm:mb-12 px-4">
             Why Choose AI Insights?
           </h2>
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <div className="bg-white p-6 rounded-2xl shadow-md border border-brand-100/60">
-              <h3 className="text-2xl font-bold text-brand-text mb-4 flex items-center gap-2">
-                <Users className="w-6 h-6 text-brand-600" />
-                User-Friendly Interface
+          <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 max-w-5xl mx-auto">
+            <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-md border border-brand-100/60 active-scale">
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-brand-text mb-3 sm:mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600 flex-shrink-0" />
+                <span>User-Friendly Interface</span>
               </h3>
-              <p className="text-brand-muted leading-relaxed">
+              <p className="text-sm sm:text-base text-brand-muted leading-relaxed">
                 Our intuitive design makes complex market analysis simple and accessible. 
                 No financial expertise required – just enter a stock symbol and get instant insights.
               </p>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl shadow-md border border-brand-100/60">
-              <h3 className="text-2xl font-bold text-brand-text mb-4 flex items-center gap-2">
-                <Target className="w-6 h-6 text-brand-600" />
-                Accurate Predictions
+            <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-md border border-brand-100/60 active-scale">
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-brand-text mb-3 sm:mb-4 flex items-center gap-2">
+                <Target className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600 flex-shrink-0" />
+                <span>Accurate Predictions</span>
               </h3>
-              <p className="text-brand-muted leading-relaxed">
+              <p className="text-sm sm:text-base text-brand-muted leading-relaxed">
                 Our AI models are continuously refined and validated to provide you with 
                 reliable predictions you can trust for your investment strategy.
               </p>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl shadow-md border border-brand-100/60">
-              <h3 className="text-2xl font-bold text-brand-text mb-4 flex items-center gap-2">
-                <BarChart3 className="w-6 h-6 text-brand-600" />
-                Comprehensive Analysis
+            <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-md border border-brand-100/60 active-scale">
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-brand-text mb-3 sm:mb-4 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600 flex-shrink-0" />
+                <span>Comprehensive Analysis</span>
               </h3>
-              <p className="text-brand-muted leading-relaxed">
+              <p className="text-sm sm:text-base text-brand-muted leading-relaxed">
                 Get a complete picture with technical indicators, sentiment analysis, news feeds, 
                 and performance metrics all in one place.
               </p>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl shadow-md border border-brand-100/60">
-              <h3 className="text-2xl font-bold text-brand-text mb-4 flex items-center gap-2">
-                <Zap className="w-6 h-6 text-brand-600" />
-                Real-Time Updates
+            <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-md border border-brand-100/60 active-scale">
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-brand-text mb-3 sm:mb-4 flex items-center gap-2">
+                <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600 flex-shrink-0" />
+                <span>Real-Time Updates</span>
               </h3>
-              <p className="text-brand-muted leading-relaxed">
+              <p className="text-sm sm:text-base text-brand-muted leading-relaxed">
                 Stay ahead of the market with live data feeds and instant predictions that 
                 adapt to changing market conditions.
               </p>

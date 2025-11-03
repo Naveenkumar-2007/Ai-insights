@@ -307,11 +307,11 @@ function Prediction() {
   }
 
   return (
-    <div className="min-h-screen py-6">
+    <div className="min-h-screen py-4 sm:py-6">
       {/* Search Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-          <form onSubmit={handleSearch} className="flex flex-wrap gap-4 items-center justify-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center justify-center">
             <div className="relative w-full sm:w-72">
               <input
                 type="text"
@@ -320,10 +320,10 @@ function Prediction() {
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
                 placeholder="Enter ticker (e.g., AAPL)"
-                className="w-full px-6 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent transition text-lg"
+                className="w-full px-4 py-3 sm:px-6 sm:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent transition text-base sm:text-lg touch-target"
               />
               {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
                   <ul className="divide-y divide-gray-100">
                     {suggestions.map(({ symbol, name, exchange, country, currency }) => (
                       <li key={`${symbol}-${exchange || 'NA'}`}>
@@ -331,11 +331,11 @@ function Prediction() {
                           type="button"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => handleSuggestionSelect(symbol)}
-                          className="w-full px-4 py-2 flex items-start justify-between text-left hover:bg-brand-50 transition-colors"
+                          className="w-full px-3 py-3 sm:px-4 sm:py-2 flex items-start justify-between text-left hover:bg-brand-50 transition-colors touch-target active-scale"
                         >
-                          <span className="font-semibold text-gray-900">{symbol}</span>
+                          <span className="font-semibold text-gray-900 text-sm sm:text-base">{symbol}</span>
                           <div className="flex-1 ml-3 overflow-hidden">
-                            <p className="text-sm text-gray-600 truncate">{name}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 truncate">{name}</p>
                             {(exchange || country || currency) && (
                               <p className="text-xs text-gray-400 truncate">
                                 {[exchange, country, currency].filter(Boolean).join(' · ')}
@@ -352,7 +352,7 @@ function Prediction() {
             <select
               value={days}
               onChange={(e) => setDays(Number(e.target.value))}
-              className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 text-lg"
+              className="w-full sm:w-auto px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 text-base sm:text-lg touch-target"
             >
               <option value={1}>1 Day</option>
               <option value={7}>7 Days</option>
@@ -361,7 +361,7 @@ function Prediction() {
             </select>
             <button
               type="submit"
-              className="bg-gradient-to-r from-brand-500 to-brand-600 text-white px-8 py-3 rounded-lg hover:from-brand-600 hover:to-brand-700 flex items-center gap-2 transition transform hover:scale-105 text-lg font-semibold"
+              className="w-full sm:w-auto bg-gradient-to-r from-brand-500 to-brand-600 text-white px-6 py-3 sm:px-8 sm:py-3 rounded-lg hover:from-brand-600 hover:to-brand-700 flex items-center justify-center gap-2 transition transform hover:scale-105 active:scale-95 text-base sm:text-lg font-semibold touch-target active-scale ripple"
             >
               <Search className="w-5 h-5" />
               Analyze Stock
@@ -371,10 +371,10 @@ function Prediction() {
       </div>
 
       {error && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-6 py-4 rounded-lg">
-            <p className="font-bold">Error</p>
-            <p className="text-sm">{error}</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 sm:px-6 sm:py-4 rounded-lg">
+            <p className="font-bold text-sm sm:text-base">Error</p>
+            <p className="text-xs sm:text-sm">{error}</p>
           </div>
         </div>
       )}
@@ -382,84 +382,84 @@ function Prediction() {
       {stockData && (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Stock Header */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-200">
-            <div className="flex items-start justify-between flex-wrap gap-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200">
+            <div className="flex items-start justify-between flex-wrap gap-3 sm:gap-4">
               <div>
-                <h2 className="text-4xl font-bold text-gray-900">{stockData.ticker}</h2>
-                <p className="text-gray-600 mt-1 text-lg">{stockData.company_name}</p>
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">{stockData.ticker}</h2>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base lg:text-lg line-clamp-2">{stockData.company_name}</p>
               </div>
               
-              <div className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-lg ${
+              <div className={`flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-bold text-sm sm:text-base lg:text-lg ${
                 stockData.ai_signal === 'STRONG BUY' || stockData.ai_signal === 'BUY' 
                   ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-700 border-2 border-green-300' 
                   : stockData.ai_signal === 'STRONG SELL' || stockData.ai_signal === 'SELL'
                   ? 'bg-gradient-to-r from-red-100 to-red-200 text-red-700 border-2 border-red-300'
                   : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 border-2 border-gray-300'
               }`}>
-                {stockData.is_profit ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
-                <span>{stockData.ai_signal}</span>
+                {stockData.is_profit ? <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" /> : <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />}
+                <span className="whitespace-nowrap">{stockData.ai_signal}</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-6">
-              <div className="bg-gradient-to-br from-brand-50 to-brand-100 p-4 rounded-xl border border-brand-200">
-                <p className="text-sm text-brand-600 font-medium flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" />
-                  Current Price
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mt-4 sm:mt-6">
+              <div className="bg-gradient-to-br from-brand-50 to-brand-100 p-3 sm:p-4 rounded-xl border border-brand-200">
+                <p className="text-xs sm:text-sm text-brand-600 font-medium flex items-center gap-1">
+                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="truncate">Current Price</span>
                 </p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">${stockData.current_price}</p>
-                <p className={`text-sm mt-2 font-semibold ${stockData.day_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mt-1">${stockData.current_price}</p>
+                <p className={`text-xs sm:text-sm mt-1 sm:mt-2 font-semibold ${stockData.day_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {stockData.day_change >= 0 ? '+' : ''}{stockData.day_change.toFixed(2)} ({stockData.day_change_percent.toFixed(2)}%)
                 </p>
               </div>
 
-              <div className="bg-gradient-to-br from-brand-50 to-brand-100 p-4 rounded-xl border border-brand-200">
-                <p className="text-sm text-brand-600 font-medium flex items-center gap-1">
-                  <TrendingUp className="w-4 h-4" />
-                  Predicted Price
+              <div className="bg-gradient-to-br from-brand-50 to-brand-100 p-3 sm:p-4 rounded-xl border border-brand-200">
+                <p className="text-xs sm:text-sm text-brand-600 font-medium flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="truncate">Predicted Price</span>
                 </p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">${stockData.predicted_price}</p>
-                <p className="text-xs text-gray-600 mt-2">Next day forecast</p>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mt-1">${stockData.predicted_price}</p>
+                <p className="text-xs text-gray-600 mt-1 sm:mt-2 truncate">Next day forecast</p>
               </div>
 
-              <div className={`p-4 rounded-xl border-2 ${stockData.is_profit ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-300' : 'bg-gradient-to-br from-red-50 to-rose-100 border-red-300'}`}>
-                <p className={`text-sm font-medium flex items-center gap-1 ${stockData.is_profit ? 'text-green-700' : 'text-red-700'}`}>
-                  <Activity className="w-4 h-4" />
-                  Expected Change
+              <div className={`p-3 sm:p-4 rounded-xl border-2 ${stockData.is_profit ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-300' : 'bg-gradient-to-br from-red-50 to-rose-100 border-red-300'}`}>
+                <p className={`text-xs sm:text-sm font-medium flex items-center gap-1 ${stockData.is_profit ? 'text-green-700' : 'text-red-700'}`}>
+                  <Activity className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="truncate">Expected Change</span>
                 </p>
-                <p className={`text-3xl font-bold mt-1 ${stockData.is_profit ? 'text-green-700' : 'text-red-700'}`}>
+                <p className={`text-xl sm:text-2xl lg:text-3xl font-bold mt-1 ${stockData.is_profit ? 'text-green-700' : 'text-red-700'}`}>
                   {stockData.profit_loss >= 0 ? '+' : ''}${stockData.profit_loss.toFixed(2)}
                 </p>
-                <p className={`text-sm mt-2 font-semibold ${stockData.is_profit ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-xs sm:text-sm mt-1 sm:mt-2 font-semibold ${stockData.is_profit ? 'text-green-600' : 'text-red-600'}`}>
                   {stockData.profit_loss_percent >= 0 ? '+' : ''}{stockData.profit_loss_percent.toFixed(2)}%
                 </p>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-                <p className="text-sm text-purple-600 font-medium">Volume</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{formatVolume(stockData.volume)}</p>
-                <p className="text-xs text-gray-600 mt-2">
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 sm:p-4 rounded-xl border border-purple-200">
+                <p className="text-xs sm:text-sm text-purple-600 font-medium truncate">Volume</p>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mt-1 truncate">{formatVolume(stockData.volume)}</p>
+                <p className="text-xs text-gray-600 mt-1 sm:mt-2 truncate">
                   Mkt Cap: {formatCurrencyCompact(stockData.market_cap)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Left Column - Charts */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               {/* Price Prediction Chart */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-brand-600" />
-                    Stock Price Prediction
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200">
+                <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
+                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
+                    <span>Stock Price Prediction</span>
                   </h3>
-                  <span className="text-sm text-gray-500 bg-brand-50 px-3 py-1 rounded-full font-medium">
+                  <span className="text-xs sm:text-sm text-gray-500 bg-brand-50 px-2 py-1 sm:px-3 sm:py-1 rounded-full font-medium">
                     {days} Days Forecast
                   </span>
                 </div>
-                <ResponsiveContainer width="100%" height={350}>
+                <ResponsiveContainer width="100%" height={300} className="sm:!h-[350px]">
                   <ComposedChart data={[
                     ...stockData.historical_data.dates.map((date, i) => ({
                       date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -479,23 +479,23 @@ function Prediction() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+                    <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Area type="monotone" dataKey="price" stroke="#1F74F0" fill="url(#colorPrice)" strokeWidth={3} name="Historical" />
-                    <Line type="monotone" dataKey="predicted" stroke="#3A8AFF" strokeWidth={3} strokeDasharray="5 5" dot={{ fill: '#3A8AFF', r: 5 }} name="Predicted" />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    <Area type="monotone" dataKey="price" stroke="#1F74F0" fill="url(#colorPrice)" strokeWidth={2} name="Historical" />
+                    <Line type="monotone" dataKey="predicted" stroke="#3A8AFF" strokeWidth={2} strokeDasharray="5 5" dot={{ fill: '#3A8AFF', r: 3 }} name="Predicted" />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Technical Chart */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-brand-600" />
-                  Technical Chart
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200">
+                <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                  <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
+                  <span>Technical Chart</span>
                 </h3>
-                <ResponsiveContainer width="100%" height={400}>
+                <ResponsiveContainer width="100%" height={300} className="sm:!h-[400px]">
                   <ComposedChart data={stockData.technical_chart.candles.slice(-30)}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis 
