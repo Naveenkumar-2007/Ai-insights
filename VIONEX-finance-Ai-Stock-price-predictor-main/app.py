@@ -180,6 +180,16 @@ def load_lstm_model():
     
     return model
 
+# Health check endpoint (minimal dependencies)
+@app.route('/api/health')
+def health_check():
+    """Simple health check endpoint"""
+    return jsonify({
+        'success': True,
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat()
+    })
+
 # Serve React App (with caching)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
