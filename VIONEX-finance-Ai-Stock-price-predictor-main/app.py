@@ -84,13 +84,14 @@ print("=" * 60)
 print("Stock Predictor App - Using Twelve Data API")
 print("=" * 60)
 
-# Configure Flask to serve React build
+# Configure Flask to serve React build (optimized)
 application = Flask(__name__, static_folder='build', static_url_path='')
 app = application
 
 configure_logging(app)
 
-ALLOWED_ORIGINS = _parse_env_list(os.getenv('ALLOWED_ORIGINS'), ['http://localhost:3000'])
+# Allow CORS from all origins for API endpoints
+ALLOWED_ORIGINS = _parse_env_list(os.getenv('ALLOWED_ORIGINS'), ['*'])
 CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
 
 firebase_ready = initialize_firebase_admin()
@@ -179,15 +180,29 @@ def load_lstm_model():
     
     return model
 
-# Serve React App
+# Serve React App (with caching)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    """Serve React frontend"""
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    else:
-        return send_from_directory(app.static_folder, 'index.html')
+    """Serve React frontend with proper caching"""
+    try:
+        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+            response = send_from_directory(app.static_folder, path)
+            # Cache static assets for 1 year
+            if path.startswith('static/'):
+                response.cache_control.max_age = 31536000
+                response.cache_control.public = True
+            return response
+        else:
+            response = send_from_directory(app.static_folder, 'index.html')
+            # Don't cache index.html
+            response.cache_control.no_cache = True
+            response.cache_control.no_store = True
+            response.cache_control.must_revalidate = True
+            return response
+    except Exception as e:
+        app.logger.error(f"Error serving static file {path}: {e}")
+        return jsonify({'error': 'Page not found'}), 404
 
 # API Routes
 @app.route('/api/search')

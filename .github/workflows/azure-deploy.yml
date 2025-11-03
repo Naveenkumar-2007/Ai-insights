@@ -118,20 +118,22 @@ jobs:
             ALPHA_VANTAGE_API_KEY="${{ secrets.ALPHA_VANTAGE_API_KEY }}" \
             FIREBASE_SERVICE_ACCOUNT_PATH="/home/site/wwwroot/firebase-admin.json" \
             ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
-            ALLOWED_ORIGINS="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
+            ALLOWED_ORIGINS="*" \
             SCM_DO_BUILD_DURING_DEPLOYMENT="true" \
             ENABLE_ORYX_BUILD="true" \
             WEBSITES_PORT="8000" \
             PORT="8000" \
             WEBSITES_CONTAINER_START_TIME_LIMIT="1800" \
-            ORYX_DISABLE_TELEMETRY="true"
+            ORYX_DISABLE_TELEMETRY="true" \
+            PYTHONUNBUFFERED="1" \
+            WEB_CONCURRENCY="1"
         
-        # Set startup command to just gunicorn
+        # Set optimized startup command
         echo "Setting startup command..."
         az webapp config set \
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
           --name "${{ env.AZURE_WEBAPP_NAME }}" \
-          --startup-file "gunicorn --bind=0.0.0.0:8000 --timeout 120 --workers 1 --worker-class sync --access-logfile - --error-logfile - wsgi:app"
+          --startup-file "gunicorn --bind=0.0.0.0:8000 --timeout 600 --workers 1 --threads 2 --worker-class gthread --worker-tmp-dir /dev/shm --access-logfile - --error-logfile - --log-level info wsgi:app"
 
     - name: Deploy to Azure Web App
       run: |
