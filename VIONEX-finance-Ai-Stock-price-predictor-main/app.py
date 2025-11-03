@@ -91,7 +91,15 @@ app = application
 configure_logging(app)
 
 # Allow CORS from all origins for API endpoints
-ALLOWED_ORIGINS = _parse_env_list(os.getenv('ALLOWED_ORIGINS'), ['*'])
+ALLOWED_ORIGINS = _parse_env_list(
+    os.getenv('ALLOWED_ORIGINS'), 
+    [
+        'http://localhost:3000',
+        'https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net',
+        'https://ai20insights.tech',
+        'https://www.ai20insights.tech'
+    ]
+)
 CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
 
 firebase_ready = initialize_firebase_admin()
