@@ -38,7 +38,7 @@ jobs:
         npm run build
       env:
         CI: false
-        REACT_APP_API_URL: https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net
+        REACT_APP_API_URL: https://ai20insights.tech
         REACT_APP_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
         REACT_APP_FIREBASE_AUTH_DOMAIN: ai-stock-predictor-2136d.firebaseapp.com
         REACT_APP_FIREBASE_PROJECT_ID: ai-stock-predictor-2136d
@@ -57,7 +57,7 @@ jobs:
         docker build \
           --cache-from $IMAGE_LATEST \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
-          --build-arg REACT_APP_API_URL="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
+          --build-arg REACT_APP_API_URL="https://ai20insights.tech" \
           --build-arg REACT_APP_FIREBASE_API_KEY="${{ secrets.FIREBASE_API_KEY }}" \
           --build-arg REACT_APP_FIREBASE_AUTH_DOMAIN="ai-stock-predictor-2136d.firebaseapp.com" \
           --build-arg REACT_APP_FIREBASE_PROJECT_ID="ai-stock-predictor-2136d" \
