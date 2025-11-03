@@ -13,6 +13,7 @@ import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import './App.css';
+import './styles/mobile.css';
 
 function App() {
   return (

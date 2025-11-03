@@ -88,7 +88,7 @@ const Home = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <button
                 onClick={handlePredictClick}
-                className="group bg-white text-brand-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-brand-50 transition-all transform hover:scale-105 shadow-2xl flex items-center gap-2"
+                className="group bg-white text-brand-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-brand-50 transition-all transform hover:scale-105 active:scale-95 shadow-2xl flex items-center gap-2 w-full sm:w-auto touch-target active-scale ripple"
               >
                 Let's Predict
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -96,7 +96,7 @@ const Home = () => {
               
               <Link
                 to="/about"
-                className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-brand-700 transition-all transform hover:scale-105"
+                className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-brand-700 transition-all transform hover:scale-105 active:scale-95 w-full sm:w-auto text-center touch-target active-scale"
               >
                 Learn More
               </Link>
