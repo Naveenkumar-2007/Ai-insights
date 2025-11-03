@@ -55,7 +55,7 @@ jobs:
         IMAGE_LATEST=${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
         
         docker build \
-          --cache-from $IMAGE_LATEST \
+          --no-cache \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
           --build-arg REACT_APP_API_URL="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net" \
           --build-arg REACT_APP_FIREBASE_API_KEY="${{ secrets.FIREBASE_API_KEY }}" \
