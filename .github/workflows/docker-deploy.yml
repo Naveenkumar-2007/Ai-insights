@@ -57,6 +57,16 @@ jobs:
         docker build \
           --cache-from $IMAGE_LATEST \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --build-arg REACT_APP_API_URL="${{ env.REACT_APP_API_URL }}" \
+          --build-arg REACT_APP_FIREBASE_API_KEY="${{ env.REACT_APP_FIREBASE_API_KEY }}" \
+          --build-arg REACT_APP_FIREBASE_AUTH_DOMAIN="${{ env.REACT_APP_FIREBASE_AUTH_DOMAIN }}" \
+          --build-arg REACT_APP_FIREBASE_PROJECT_ID="${{ env.REACT_APP_FIREBASE_PROJECT_ID }}" \
+          --build-arg REACT_APP_FIREBASE_STORAGE_BUCKET="${{ env.REACT_APP_FIREBASE_STORAGE_BUCKET }}" \
+          --build-arg REACT_APP_FIREBASE_MESSAGING_SENDER_ID="${{ env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}" \
+          --build-arg REACT_APP_FIREBASE_APP_ID="${{ env.REACT_APP_FIREBASE_APP_ID }}" \
+          --build-arg REACT_APP_FIREBASE_MEASUREMENT_ID="${{ env.REACT_APP_FIREBASE_MEASUREMENT_ID }}" \
+          --build-arg REACT_APP_FIREBASE_CLIENT_ID="${{ env.REACT_APP_FIREBASE_CLIENT_ID }}" \
+          --build-arg REACT_APP_ADMIN_EMAILS="${{ env.REACT_APP_ADMIN_EMAILS }}" \
           --tag $IMAGE_TAG \
           --tag $IMAGE_LATEST \
           --file Dockerfile \
