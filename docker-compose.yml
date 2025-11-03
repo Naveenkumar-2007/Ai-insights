@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - TWELVE_DATA_API_KEY=${TWELVE_DATA_API_KEY}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+      - FIREBASE_SERVICE_ACCOUNT_PATH=/app/firebase-admin.json
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - ALLOWED_ORIGINS=*
+      - PYTHONUNBUFFERED=1
+      - WEB_CONCURRENCY=2
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

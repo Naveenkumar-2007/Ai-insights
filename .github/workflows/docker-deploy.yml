@@ -1,0 +1,137 @@
+name: Docker Build and Deploy to Azure
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: Aiinsight
+  AZURE_RESOURCE_GROUP: Ai_insights
+  AZURE_CONTAINER_REGISTRY: aiinsightacr
+  IMAGE_NAME: stock-predictor
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Log in to Azure Container Registry
+      run: |
+        az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+
+    - name: Build React Frontend
+      working-directory: ./frontend
+      run: |
+        npm ci
+        npm run build
+      env:
+        CI: false
+        REACT_APP_API_URL: https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net
+        REACT_APP_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        REACT_APP_FIREBASE_AUTH_DOMAIN: ai-stock-predictor-2136d.firebaseapp.com
+        REACT_APP_FIREBASE_PROJECT_ID: ai-stock-predictor-2136d
+        REACT_APP_FIREBASE_STORAGE_BUCKET: ai-stock-predictor-2136d.firebasestorage.app
+        REACT_APP_FIREBASE_MESSAGING_SENDER_ID: 982095160791
+        REACT_APP_FIREBASE_APP_ID: 1:982095160791:web:f10c51bb99985b3e88d792
+        REACT_APP_FIREBASE_MEASUREMENT_ID: G-FTDGR51KHR
+        REACT_APP_FIREBASE_CLIENT_ID: 1075191660465-v9p81sed1obo0aolvm1juc2mjc8a9hol.apps.googleusercontent.com
+        REACT_APP_ADMIN_EMAILS: naveenkumarchapala123@gmail.com
+
+    - name: Copy frontend build to backend
+      run: |
+        cp -r frontend/build VIONEX-finance-Ai-Stock-price-predictor-main/
+
+    - name: Build and push Docker image
+      working-directory: ./VIONEX-finance-Ai-Stock-price-predictor-main
+      run: |
+        IMAGE_TAG=${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        IMAGE_LATEST=${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+        
+        docker build \
+          --cache-from $IMAGE_LATEST \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --tag $IMAGE_TAG \
+          --tag $IMAGE_LATEST \
+          --file Dockerfile \
+          .
+        
+        docker push $IMAGE_TAG
+        docker push $IMAGE_LATEST
+        
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+    - name: Configure App Service for Container
+      run: |
+        # Update app service to use container
+        az webapp config container set \
+          --name ${{ env.AZURE_WEBAPP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --docker-custom-image-name ${{ env.IMAGE_TAG }} \
+          --docker-registry-server-url https://${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
+        
+        # Configure app settings
+        az webapp config appsettings set \
+          --name ${{ env.AZURE_WEBAPP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --settings \
+            TWELVE_DATA_API_KEY="${{ secrets.TWELVE_DATA_API_KEY }}" \
+            FINNHUB_API_KEY="${{ secrets.FINNHUB_API_KEY }}" \
+            ALPHA_VANTAGE_API_KEY="${{ secrets.ALPHA_VANTAGE_API_KEY }}" \
+            FIREBASE_SERVICE_ACCOUNT_PATH="/app/firebase-admin.json" \
+            ADMIN_EMAILS="${{ secrets.ADMIN_EMAILS }}" \
+            ALLOWED_ORIGINS="*" \
+            WEBSITES_PORT="8000" \
+            WEBSITES_CONTAINER_START_TIME_LIMIT="600" \
+            DOCKER_REGISTRY_SERVER_URL="https://${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io" \
+            DOCKER_ENABLE_CI="true"
+
+    - name: Restart App Service
+      run: |
+        az webapp restart \
+          --name ${{ env.AZURE_WEBAPP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+
+    - name: Wait for deployment
+      run: |
+        echo "Waiting for container to start..."
+        sleep 60
+
+    - name: Health Check
+      run: |
+        HEALTH_URL="https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net/api/health"
+        echo "Testing health endpoint: $HEALTH_URL"
+        
+        for i in {1..10}; do
+          if curl -f -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" | grep -q "200"; then
+            echo "✓ Health check passed!"
+            exit 0
+          fi
+          echo "Attempt $i failed, waiting 30s..."
+          sleep 30
+        done
+        
+        echo "❌ Health check failed after 10 attempts"
+        exit 1
+
+    - name: Deployment Summary
+      if: always()
+      run: |
+        echo "================================================"
+        echo "Deployment Summary"
+        echo "================================================"
+        echo "Image: ${{ env.IMAGE_TAG }}"
+        echo "App URL: https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net"
+        echo "Health Check: https://aiinsight-fyhyenesh4d2hee9.centralindia-01.azurewebsites.net/api/health"
+        echo "================================================"
