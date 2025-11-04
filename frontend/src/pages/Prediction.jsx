@@ -1,25 +1,121 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { TrendingUp, TrendingDown, Search, DollarSign, BarChart3, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Search, DollarSign, BarChart3, Activity, Calendar, Image } from 'lucide-react';
 import { 
   LineChart, Line, AreaChart, Area, BarChart, Bar, 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  Legend, ComposedChart 
+  Legend, ComposedChart, ReferenceLine, Cell
 } from 'recharts';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-// Custom Tooltip Component
+// Helper function to track user stats
+const trackUserStats = (userEmail, ticker) => {
+  if (!userEmail) return;
+  
+  const statsKey = `userStats_${userEmail}`;
+  const stats = JSON.parse(localStorage.getItem(statsKey)) || {
+    predictions: 0,
+    stocksTracked: [],
+    correctPredictions: 0
+  };
+  
+  // Increment predictions
+  stats.predictions += 1;
+  
+  // Add stock to tracked list if not already there
+  if (!stats.stocksTracked.includes(ticker)) {
+    stats.stocksTracked.push(ticker);
+  }
+  
+  // For demo purposes, randomly mark some predictions as correct
+  if (Math.random() > 0.3) {
+    stats.correctPredictions += 1;
+  }
+  
+  localStorage.setItem(statsKey, JSON.stringify(stats));
+};
+
+// Helper function to get stock logo
+const getStockLogo = (symbol) => {
+  return `https://logo.clearbit.com/${symbol.toLowerCase()}.com`;
+};
+
+// Candlestick component for traditional stock charts
+const CandlestickShape = ({ fill, x, y, width, height, low, high, open, close }) => {
+  const isGrowing = close > open;
+  const color = isGrowing ? '#10b981' : '#ef4444';
+  const bodyHeight = Math.abs(close - open);
+  const bodyY = isGrowing ? y + height - (close - low) : y + height - (open - low);
+  
+  return (
+    <g>
+      {/* High-Low wick */}
+      <line
+        x1={x + width / 2}
+        y1={y + height - (high - low)}
+        x2={x + width / 2}
+        y2={y + height}
+        stroke={color}
+        strokeWidth={Math.max(1, width * 0.1)}
+      />
+      {/* Open-Close body */}
+      <rect
+        x={x + width * 0.2}
+        y={bodyY}
+        width={width * 0.6}
+        height={Math.max(1, bodyHeight)}
+        fill={color}
+        stroke={color}
+      />
+    </g>
+  );
+};
+
+// Custom Tooltip Component with better mobile display
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white dark:bg-dark-card p-3 border border-gray-200 dark:border-dark-border rounded-lg shadow-lg">
-        <p className="text-sm text-gray-600 dark:text-gray-400">{label}</p>
+      <div className="bg-white dark:bg-dark-card p-2 sm:p-3 border border-gray-200 dark:border-dark-border rounded-lg shadow-xl text-xs sm:text-sm max-w-[200px]">
+        <p className="font-semibold text-gray-900 dark:text-white mb-1 truncate">{label}</p>
         {payload.map((entry, index) => (
-          <p key={index} className="text-sm font-semibold" style={{ color: entry.color }}>
-            {entry.name}: ${entry.value?.toFixed(2)}
+          <p key={index} className="font-medium truncate" style={{ color: entry.color }}>
+            {entry.name}: ${typeof entry.value === 'number' ? entry.value.toFixed(2) : entry.value}
           </p>
         ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+// Format time ago for news
+const formatTimeAgo = (timestamp) => {
+  const now = Date.now() / 1000; // Current time in seconds
+  const diff = now - timestamp;
+  
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return new Date(timestamp * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+// Custom Candlestick Tooltip
+const CandlestickTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length > 0) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white dark:bg-dark-card p-2 sm:p-3 border border-gray-200 dark:border-dark-border rounded-lg shadow-lg text-xs sm:text-sm">
+        <p className="font-medium text-gray-600 dark:text-gray-400 mb-1">
+          {new Date(data.date).toLocaleDateString()}
+        </p>
+        <p className="text-green-600 dark:text-green-400">Open: ${data.open?.toFixed(2)}</p>
+        <p className="text-blue-600 dark:text-blue-400">High: ${data.high?.toFixed(2)}</p>
+        <p className="text-orange-600 dark:text-orange-400">Low: ${data.low?.toFixed(2)}</p>
+        <p className="text-red-600 dark:text-red-400">Close: ${data.close?.toFixed(2)}</p>
+        <p className="text-gray-600 dark:text-gray-400">Vol: {formatVolume(data.volume)}</p>
       </div>
     );
   }
@@ -40,28 +136,45 @@ const SentimentGauge = ({ sentiment }) => {
     return '#94a3b8';
   };
 
+  const getSentimentText = () => {
+    if (score > 0.5) return 'Very Bullish';
+    if (score > 0.2) return 'Bullish';
+    if (score > -0.2) return 'Neutral';
+    if (score > -0.5) return 'Bearish';
+    return 'Very Bearish';
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center py-4">
-      <div className="relative w-40 h-40">
+    <div className="flex flex-col items-center justify-center py-3 sm:py-4">
+      <div className="relative sentiment-gauge" style={{ width: '140px', height: '140px' }}>
         <svg className="transform -rotate-90 w-full h-full">
-          <circle cx="80" cy="80" r="70" stroke="#e5e7eb" strokeWidth="12" fill="none" />
+          <circle cx="70" cy="70" r="60" stroke="#e5e7eb" strokeWidth="14" fill="none" className="dark:stroke-gray-700" />
           <circle
-            cx="80" cy="80" r="70"
+            cx="70" cy="70" r="60"
             stroke={getColor()}
-            strokeWidth="12"
+            strokeWidth="14"
             fill="none"
-            strokeDasharray={`${percentage * 4.4} 440`}
+            strokeDasharray={`${percentage * 3.77} 377`}
             strokeLinecap="round"
+            style={{ transition: 'stroke-dasharray 1s ease-in-out' }}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold" style={{ color: getColor() }}>
-            {label}
+          <span className="text-xl sm:text-2xl font-bold" style={{ color: getColor() }}>
+            {getSentimentText()}
           </span>
-          <span className="text-sm text-gray-500 mt-1">
+          <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
             Score: {score.toFixed(2)}
           </span>
         </div>
+      </div>
+      <div className="w-full mt-4 px-2">
+        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+          <span>Bearish</span>
+          <span>Neutral</span>
+          <span>Bullish</span>
+        </div>
+        <div className="h-2 bg-gradient-to-r from-red-500 via-gray-400 to-green-500 rounded-full"></div>
       </div>
     </div>
   );
@@ -108,6 +221,7 @@ const formatVolume = (value) => {
 };
 
 function Prediction() {
+  const { currentUser } = useAuth();
   const [ticker, setTicker] = useState('AAPL');
   const [days, setDays] = useState(7);
   const [stockData, setStockData] = useState(null);
@@ -117,6 +231,52 @@ function Prediction() {
   const [error, setError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [performancePeriod, setPerformancePeriod] = useState('1M'); // New state for performance chart period
+
+  // Filter performance data based on selected period
+  const getPerformanceData = () => {
+    if (!stockData?.performance_chart?.dates || !stockData?.performance_chart?.prices) {
+      return { dates: [], prices: [] };
+    }
+
+    const dates = stockData.performance_chart.dates;
+    const prices = stockData.performance_chart.prices;
+    const now = new Date();
+    let startDate;
+
+    switch (performancePeriod) {
+      case '1W':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '1M':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '3M':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case '6M':
+        startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+        break;
+      case '1Y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      case 'ALL':
+      default:
+        return { dates, prices };
+    }
+
+    const filteredData = dates.reduce((acc, date, index) => {
+      const dateObj = new Date(date);
+      if (dateObj >= startDate) {
+        acc.dates.push(date);
+        acc.prices.push(prices[index]);
+      }
+      return acc;
+    }, { dates: [], prices: [] });
+
+    return filteredData.dates.length > 0 ? filteredData : { dates, prices };
+  };
+
   const hideSuggestionsTimeoutRef = useRef(null);
   const searchDebounceRef = useRef(null);
 
@@ -231,6 +391,11 @@ function Prediction() {
       }
       setSentiment(sentimentRes.data.sentiment);
       setNews(newsRes.data.news || []);
+      
+      // Track user stats
+      if (currentUser?.email) {
+        trackUserStats(currentUser.email, payload?.ticker || symbol);
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch data');
       console.error(err);
@@ -382,11 +547,25 @@ function Prediction() {
       {stockData && (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Stock Header */}
-          <div className="bg-white dark:bg-dark-card rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-dark-border">
+          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-start justify-between flex-wrap gap-3 sm:gap-4">
-              <div>
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">{stockData.ticker}</h2>
-                <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base lg:text-lg line-clamp-2">{stockData.company_name}</p>
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/30 dark:to-blue-900/30 flex items-center justify-center overflow-hidden border-2 border-cyan-200 dark:border-cyan-600/30 flex-shrink-0 stock-logo-lg">
+                  <img 
+                    src={`https://financialmodelingprep.com/image-stock/${stockData.ticker}.png`}
+                    alt={stockData.ticker}
+                    className="w-full h-full object-contain p-1 stock-logo"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = `<span class="text-2xl sm:text-3xl font-bold text-cyan-600 dark:text-cyan-400">${stockData.ticker.charAt(0)}</span>`;
+                    }}
+                  />
+                </div>
+                <div>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">{stockData.ticker}</h2>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base lg:text-lg line-clamp-2">{stockData.company_name}</p>
+                </div>
               </div>
               
               <div className={`flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-bold text-sm sm:text-base lg:text-lg ${
@@ -448,161 +627,505 @@ function Prediction() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Left Column - Charts */}
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              {/* Price Prediction Chart */}
-              <div className="bg-white dark:bg-dark-card rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-dark-border">
+              {/* Professional Stock Price Prediction Chart */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
                   <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 dark:text-cyan-400" />
                     <span>Stock Price Prediction</span>
                   </h3>
-                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 bg-cyan-50 dark:bg-cyan-500/10 px-2 py-1 sm:px-3 sm:py-1 rounded-full font-medium border border-cyan-200 dark:border-cyan-500/20">
+                  <span className="text-xs sm:text-sm text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-500/20 px-3 py-1.5 rounded-full font-semibold border border-cyan-300 dark:border-cyan-500/30">
                     {days} Days Forecast
                   </span>
                 </div>
-                <ResponsiveContainer width="100%" height={300} className="sm:!h-[350px]">
-                  <ComposedChart data={[
-                    ...stockData.historical_data.dates.map((date, i) => ({
-                      date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                      price: stockData.historical_data.prices[i],
-                      type: 'historical'
-                    })),
-                    ...stockData.future_predictions.map((pred) => ({
-                      date: new Date(pred.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                      predicted: pred.price,
-                      type: 'predicted'
-                    }))
-                  ]}>
-                    <defs>
-                      <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3A8AFF" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3A8AFF" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
-                    <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    <Area type="monotone" dataKey="price" stroke="#1F74F0" fill="url(#colorPrice)" strokeWidth={2} name="Historical" />
-                    <Line type="monotone" dataKey="predicted" stroke="#3A8AFF" strokeWidth={2} strokeDasharray="5 5" dot={{ fill: '#3A8AFF', r: 3 }} name="Predicted" />
-                  </ComposedChart>
-                </ResponsiveContainer>
+                <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-2" style={{ height: '350px', minHeight: '300px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={[
+                      ...stockData.historical_data.dates.map((date, i) => ({
+                        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        fullDate: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        price: stockData.historical_data.prices[i],
+                        type: 'historical'
+                      })),
+                      ...stockData.future_predictions.map((pred) => ({
+                        date: new Date(pred.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        fullDate: new Date(pred.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        predicted: pred.price,
+                        type: 'predicted'
+                      }))
+                    ]} margin={{ top: 15, right: 20, left: 10, bottom: 65 }}>
+                      <defs>
+                        <linearGradient id="historicalGradientGreen" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.6}/>
+                          <stop offset="100%" stopColor="#10b981" stopOpacity={0.1}/>
+                        </linearGradient>
+                        <linearGradient id="historicalGradientRed" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.6}/>
+                          <stop offset="100%" stopColor="#ef4444" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid 
+                        strokeDasharray="3 3" 
+                        stroke="#374151" 
+                        opacity={0.2}
+                        vertical={false}
+                      />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 11, fill: '#9ca3af' }} 
+                        angle={-45} 
+                        textAnchor="end" 
+                        height={70}
+                        stroke="#6b7280"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 11, fill: '#9ca3af' }} 
+                        domain={['auto', 'auto']} 
+                        width={60}
+                        stroke="#6b7280"
+                        tickFormatter={(val) => `$${val.toFixed(0)}`}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                          border: '1px solid #374151',
+                          borderRadius: '8px'
+                        }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-gray-900 p-3 border border-gray-700 rounded-lg shadow-xl">
+                                <p className="text-xs font-bold text-white mb-2">{data.fullDate}</p>
+                                {data.price && (
+                                  <p className="text-xs text-cyan-400">
+                                    Price: <span className="font-bold">${data.price.toFixed(2)}</span>
+                                  </p>
+                                )}
+                                {data.predicted && (
+                                  <p className={`text-xs mt-1 ${stockData.is_profit ? 'text-green-400' : 'text-red-400'}`}>
+                                    Predicted: <span className="font-bold">${data.predicted.toFixed(2)}</span>
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Legend 
+                        wrapperStyle={{ 
+                          fontSize: '12px', 
+                          paddingTop: '12px'
+                        }} 
+                        iconType="line" 
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="price" 
+                        stroke={stockData.is_profit ? '#10b981' : '#ef4444'} 
+                        fill={stockData.is_profit ? 'url(#historicalGradientGreen)' : 'url(#historicalGradientRed)'} 
+                        strokeWidth={3}
+                        name="Historical Price"
+                        dot={false}
+                        activeDot={{ r: 5, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="predicted" 
+                        stroke={stockData.is_profit ? '#059669' : '#dc2626'} 
+                        strokeWidth={3.5} 
+                        strokeDasharray="6 4" 
+                        dot={{ fill: stockData.is_profit ? '#10b981' : '#ef4444', r: 5, strokeWidth: 2, stroke: '#fff' }} 
+                        name="AI Prediction" 
+                      />
+                      <ReferenceLine 
+                        y={stockData.current_price} 
+                        stroke="#6b7280" 
+                        strokeDasharray="3 3" 
+                        strokeWidth={1.5}
+                        label={{ value: 'Current', fontSize: 11, fill: '#6b7280', position: 'right' }} 
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
-              {/* Technical Chart */}
-              <div className="bg-white dark:bg-dark-card rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-dark-border">
+              {/* Technical Chart - Professional Candlestick */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
                 <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2">
                   <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 dark:text-cyan-400" />
-                  <span>Technical Chart</span>
+                  <span>Technical Chart (Candlestick)</span>
                 </h3>
-                <ResponsiveContainer width="100%" height={300} className="sm:!h-[400px]">
-                  <ComposedChart data={stockData.technical_chart.candles.slice(-30)}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 10 }} 
-                      tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
-                    />
-                    <YAxis yAxisId="price" orientation="right" domain={['auto', 'auto']} tick={{ fontSize: 11 }} />
-                    <YAxis yAxisId="volume" orientation="left" tick={{ fontSize: 11 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Bar yAxisId="volume" dataKey="volume" fill="#94a3b8" opacity={0.3} name="Volume" />
-                    <Line yAxisId="price" type="monotone" dataKey="close" stroke="#1F74F0" strokeWidth={2.5} dot={false} name="Close" />
-                    {stockData.technical_chart.moving_averages.sma20.length > 0 && (
-                      <Line 
-                        yAxisId="price" 
-                        type="monotone" 
-                        data={stockData.technical_chart.moving_averages.sma20} 
-                        dataKey="value" 
-                        stroke="#f59e0b" 
-                        strokeWidth={2} 
-                        dot={false} 
-                        name="SMA 20" 
+                <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-2" style={{ height: '450px', minHeight: '400px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart 
+                      data={stockData.technical_chart.candles.slice(-30)}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
+                    >
+                      <defs>
+                        <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid 
+                        strokeDasharray="3 3" 
+                        stroke="#374151" 
+                        opacity={0.2}
+                        vertical={false}
                       />
-                    )}
-                  </ComposedChart>
-                </ResponsiveContainer>
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 11, fill: '#9ca3af' }} 
+                        tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
+                        angle={-45}
+                        textAnchor="end"
+                        height={70}
+                        stroke="#6b7280"
+                      />
+                      <YAxis 
+                        yAxisId="price" 
+                        orientation="right" 
+                        domain={['auto', 'auto']}
+                        tick={{ fontSize: 11, fill: '#9ca3af' }} 
+                        width={65}
+                        stroke="#6b7280"
+                        tickFormatter={(val) => `$${val.toFixed(0)}`}
+                      />
+                      <YAxis 
+                        yAxisId="volume" 
+                        orientation="left" 
+                        tick={{ fontSize: 10, fill: '#9ca3af' }} 
+                        width={60}
+                        stroke="#6b7280"
+                        tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                          border: '1px solid #374151',
+                          borderRadius: '8px',
+                          backdropFilter: 'blur(10px)'
+                        }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            const isGreen = data.close >= data.open;
+                            const change = ((data.close - data.open) / data.open * 100).toFixed(2);
+                            return (
+                              <div className="bg-gray-900 p-3 border border-gray-700 rounded-lg shadow-xl">
+                                <p className="text-xs font-bold text-white mb-2">
+                                  {new Date(data.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between gap-6">
+                                    <span className="text-xs text-gray-400">Open:</span>
+                                    <span className="text-xs font-bold text-blue-400">${data.open?.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-6">
+                                    <span className="text-xs text-gray-400">High:</span>
+                                    <span className="text-xs font-bold text-green-400">${data.high?.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-6">
+                                    <span className="text-xs text-gray-400">Low:</span>
+                                    <span className="text-xs font-bold text-red-400">${data.low?.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-6">
+                                    <span className="text-xs text-gray-400">Close:</span>
+                                    <span className={`text-xs font-bold ${isGreen ? 'text-green-400' : 'text-red-400'}`}>
+                                      ${data.close?.toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between gap-6 pt-1.5 border-t border-gray-700">
+                                    <span className="text-xs text-gray-400">Volume:</span>
+                                    <span className="text-xs font-bold text-purple-400">{formatVolume(data.volume)}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-6">
+                                    <span className="text-xs text-gray-400">Change:</span>
+                                    <span className={`text-xs font-bold ${isGreen ? 'text-green-400' : 'text-red-400'}`}>
+                                      {change > 0 ? '+' : ''}{change}%
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }} 
+                      />
+                      <Legend 
+                        wrapperStyle={{ 
+                          fontSize: '12px', 
+                          paddingTop: '12px',
+                          color: '#9ca3af'
+                        }} 
+                      />
+                      
+                      {/* Volume bars in background */}
+                      <Bar 
+                        yAxisId="volume" 
+                        dataKey="volume" 
+                        fill="url(#volumeGradient)" 
+                        name="Volume" 
+                        radius={[2, 2, 0, 0]}
+                        opacity={0.6}
+                      />
+                      
+                      {/* Professional Candlesticks - Using Error Bars for OHLC */}
+                      <Bar 
+                        yAxisId="price" 
+                        dataKey="open"
+                        name="OHLC"
+                        shape={(props) => {
+                          const { x, y, width, height, payload } = props;
+                          if (!payload || typeof payload.open === 'undefined') return null;
+                          
+                          const isGreen = payload.close >= payload.open;
+                          const color = isGreen ? '#10b981' : '#ef4444';
+                          
+                          // Calculate scaling - use the chart's coordinate system
+                          const chartHeight = height;
+                          const priceRange = Math.max(...stockData.technical_chart.candles.slice(-30).map(c => c.high)) - 
+                                           Math.min(...stockData.technical_chart.candles.slice(-30).map(c => c.low));
+                          const priceMin = Math.min(...stockData.technical_chart.candles.slice(-30).map(c => c.low));
+                          
+                          const getYPos = (price) => {
+                            const ratio = (price - priceMin) / priceRange;
+                            return y + chartHeight - (ratio * chartHeight);
+                          };
+                          
+                          const highY = getYPos(payload.high);
+                          const lowY = getYPos(payload.low);
+                          const openY = getYPos(payload.open);
+                          const closeY = getYPos(payload.close);
+                          
+                          const wickX = x + width / 2;
+                          const candleWidth = Math.max(width * 0.7, 4);
+                          const candleX = x + (width - candleWidth) / 2;
+                          const bodyHeight = Math.abs(closeY - openY);
+                          const bodyY = Math.min(openY, closeY);
+                          
+                          return (
+                            <g>
+                              {/* High-Low wick line */}
+                              <line
+                                x1={wickX}
+                                y1={highY}
+                                x2={wickX}
+                                y2={lowY}
+                                stroke={color}
+                                strokeWidth={1.5}
+                              />
+                              {/* Open-Close body rectangle */}
+                              <rect
+                                x={candleX}
+                                y={bodyY}
+                                width={candleWidth}
+                                height={Math.max(bodyHeight, 1)}
+                                fill={isGreen ? color : '#1f2937'}
+                                stroke={color}
+                                strokeWidth={1.5}
+                                rx={1}
+                              />
+                            </g>
+                          );
+                        }}
+                      />
+                      
+                      {/* Moving Average Line */}
+                      {stockData.technical_chart.moving_averages.sma20.length > 0 && (
+                        <Line 
+                          yAxisId="price" 
+                          type="monotone" 
+                          data={stockData.technical_chart.moving_averages.sma20.slice(-30)} 
+                          dataKey="value" 
+                          stroke="#f59e0b" 
+                          strokeWidth={2.5} 
+                          dot={false} 
+                          name="SMA 20"
+                          strokeDasharray="5 3"
+                        />
+                      )}
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
-              {/* Performance Chart */}
-              <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-dark-border">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Performance</h3>
-                <div className="flex gap-4 mb-6 flex-wrap">
+              {/* Professional Performance Chart */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">Performance</h3>
+                  <div className="flex gap-1 sm:gap-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+                    {['1W', '1M', '3M', '6M', '1Y', 'ALL'].map((period) => (
+                      <button
+                        key={period}
+                        onClick={() => setPerformancePeriod(period)}
+                        className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-all performance-button touch-target ${
+                          performancePeriod === period
+                            ? 'bg-cyan-600 text-white shadow-lg transform scale-105'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {period}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6 flex-wrap">
                   {Object.entries(stockData.performance).map(([period, value]) => (
                     value !== null && (
-                      <div key={period} className="text-center bg-gray-50 dark:bg-dark-elevated px-4 py-2 rounded-lg border border-gray-200 dark:border-dark-border">
-                        <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">{period}</p>
-                        <p className={`text-lg font-bold mt-1 ${value >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {value >= 0 ? '+' : ''}{value}%
+                      <div key={period} className="text-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 px-3 sm:px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 flex-1 min-w-[70px] shadow-sm">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold truncate uppercase">{period}</p>
+                        <p className={`text-sm sm:text-base font-bold mt-1 ${value >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {value >= 0 ? '+' : ''}{value.toFixed(2)}%
                         </p>
                       </div>
                     )
                   ))}
                 </div>
-                <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={stockData.performance_chart.dates.map((date, i) => ({
-                    date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                    price: stockData.performance_chart.prices[i]
-                  }))}>
-                    <defs>
-                      <linearGradient id="colorPerf" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3A8AFF" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3A8AFF" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="price" stroke="#1F74F0" fill="url(#colorPerf)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-3" style={{ height: '300px', minHeight: '250px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart 
+                      data={(() => {
+                        const perfData = getPerformanceData();
+                        return perfData.dates.map((date, i) => ({
+                          date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                          fullDate: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                          price: perfData.prices[i]
+                        }));
+                      })()}
+                      margin={{ top: 10, right: 15, left: 0, bottom: 50 }}
+                    >
+                      <defs>
+                        {(() => {
+                          const perfData = getPerformanceData();
+                          const isProfit = perfData.prices.length > 1 && perfData.prices[perfData.prices.length - 1] >= perfData.prices[0];
+                          return (
+                            <>
+                              <linearGradient id="performanceGradientGreen" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#10b981" stopOpacity={0.6}/>
+                                <stop offset="100%" stopColor="#10b981" stopOpacity={0.05}/>
+                              </linearGradient>
+                              <linearGradient id="performanceGradientRed" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#ef4444" stopOpacity={0.6}/>
+                                <stop offset="100%" stopColor="#ef4444" stopOpacity={0.05}/>
+                              </linearGradient>
+                            </>
+                          );
+                        })()}
+                      </defs>
+                      <CartesianGrid 
+                        strokeDasharray="3 3" 
+                        stroke="#374151" 
+                        opacity={0.2}
+                        vertical={false}
+                      />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 11, fill: '#9ca3af' }} 
+                        angle={-45} 
+                        textAnchor="end" 
+                        height={60}
+                        stroke="#6b7280"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 11, fill: '#9ca3af' }} 
+                        width={55}
+                        stroke="#6b7280"
+                        tickFormatter={(val) => `$${val.toFixed(0)}`}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                          border: '1px solid #374151',
+                          borderRadius: '8px'
+                        }}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            const perfData = getPerformanceData();
+                            const startPrice = perfData.prices[0];
+                            const change = data.price - startPrice;
+                            const changePercent = ((change / startPrice) * 100).toFixed(2);
+                            return (
+                              <div className="bg-gray-900 p-3 border border-gray-700 rounded-lg shadow-xl">
+                                <p className="text-xs font-bold text-white mb-2">{data.fullDate}</p>
+                                <p className="text-xs text-cyan-400">Price: <span className="font-bold">${data.price.toFixed(2)}</span></p>
+                                <p className={`text-xs mt-1 ${change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  Change: <span className="font-bold">{change >= 0 ? '+' : ''}${change.toFixed(2)} ({changePercent}%)</span>
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="price" 
+                        stroke={(() => {
+                          const perfData = getPerformanceData();
+                          return perfData.prices.length > 1 && perfData.prices[perfData.prices.length - 1] >= perfData.prices[0] ? '#10b981' : '#ef4444';
+                        })()} 
+                        fill={(() => {
+                          const perfData = getPerformanceData();
+                          return perfData.prices.length > 1 && perfData.prices[perfData.prices.length - 1] >= perfData.prices[0] 
+                            ? 'url(#performanceGradientGreen)' 
+                            : 'url(#performanceGradientRed)';
+                        })()} 
+                        strokeWidth={3}
+                        dot={false}
+                        activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
-              {/* Forecast Table */}
-              <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-dark-border">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Forecast Signals</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-left text-sm">
+              {/* Professional Forecast Table */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+                <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Forecast Signals</h3>
+                <div className="overflow-x-auto table-container bg-gray-50 dark:bg-gray-900 rounded-lg">
+                  <table className="min-w-full text-left text-xs sm:text-sm">
                     <thead>
-                      <tr className="bg-gray-50 dark:bg-dark-elevated text-gray-600 dark:text-gray-400 uppercase text-xs font-semibold">
-                        <th className="px-4 py-3 rounded-l-lg">Date</th>
-                        <th className="px-4 py-3">Signal</th>
-                        <th className="px-4 py-3">Predicted</th>
-                        <th className="px-4 py-3">Δ Price</th>
-                        <th className="px-4 py-3 rounded-r-lg">Δ %</th>
+                      <tr className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-800 text-gray-700 dark:text-gray-300 uppercase text-xs font-bold border-b-2 border-gray-200 dark:border-gray-600">
+                        <th className="px-3 sm:px-4 py-3 sm:py-4">Date</th>
+                        <th className="px-3 sm:px-4 py-3 sm:py-4">Signal</th>
+                        <th className="px-3 sm:px-4 py-3 sm:py-4">Predicted</th>
+                        <th className="px-3 sm:px-4 py-3 sm:py-4">Δ Price</th>
+                        <th className="px-3 sm:px-4 py-3 sm:py-4">Δ %</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="bg-white dark:bg-gray-800">
                       {predictionRows.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
+                          <td colSpan={5} className="px-3 sm:px-4 py-3 sm:py-4 text-center text-gray-500 dark:text-gray-400">
                             No forecast data available.
                           </td>
                         </tr>
                       )}
                       {predictionRows.map((row) => (
-                        <tr key={row.id} className="border-t border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-elevated transition-colors">
-                          <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{row.dateLabel}</td>
-                          <td className="px-4 py-3">
+                        <tr key={row.id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent dark:hover:from-gray-700 dark:hover:to-transparent transition-all duration-200">
+                          <td className="px-3 sm:px-4 py-3 sm:py-4 font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{row.dateLabel}</td>
+                          <td className="px-3 sm:px-4 py-3 sm:py-4">
                             <span
-                              className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap shadow-sm ${
                                 row.signal === 'BUY'
-                                  ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
+                                  ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
                                   : row.signal === 'SELL'
-                                  ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400'
-                                  : 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400'
+                                  ? 'bg-gradient-to-r from-red-500 to-red-600 text-white'
+                                  : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
                               }`}
                             >
                               {row.signal}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-gray-900 dark:text-white font-semibold">${row.price}</td>
-                          <td className={`px-4 py-3 font-semibold ${Number(row.change) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          <td className="px-3 sm:px-4 py-3 sm:py-4 text-gray-900 dark:text-gray-100 font-bold whitespace-nowrap">${row.price}</td>
+                          <td className={`px-3 sm:px-4 py-3 sm:py-4 font-bold whitespace-nowrap ${Number(row.change) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {Number(row.change) >= 0 ? '+' : ''}${row.change}
                           </td>
-                          <td className={`px-4 py-3 font-semibold ${Number(row.changePercent) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          <td className={`px-3 sm:px-4 py-3 sm:py-4 font-bold whitespace-nowrap ${Number(row.changePercent) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {Number(row.changePercent) >= 0 ? '+' : ''}{row.changePercent}%
                           </td>
                         </tr>
@@ -613,83 +1136,111 @@ function Prediction() {
               </div>
             </div>
 
-            {/* Right Column - Indicators & Stats */}
+            {/* Right Column - Professional Indicators & Stats */}
             <div className="space-y-6">
               {/* Technical Indicators */}
-              <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-dark-border">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Technical Indicators</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+                <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Technical Indicators</h3>
                 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {stockData.indicators.rsi && (
-                    <div className="bg-cyan-50 dark:bg-cyan-500/10 p-4 rounded-xl border border-cyan-200 dark:border-cyan-500/20">
+                    <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-800/20 p-3 sm:p-4 rounded-xl border border-cyan-300 dark:border-cyan-600/30 indicator-card shadow-sm">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">RSI</span>
-                        <span className="text-lg font-bold text-cyan-600 dark:text-cyan-400">{stockData.indicators.rsi}</span>
+                        <span className="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">RSI (14)</span>
+                        <span className="text-base sm:text-lg font-bold text-cyan-700 dark:text-cyan-400 indicator-value">{stockData.indicators.rsi}</span>
                       </div>
-                      <ResponsiveContainer width="100%" height={60}>
-                        <LineChart data={stockData.indicator_trends.rsi.dates.slice(-20).map((date, i) => ({
-                          value: stockData.indicator_trends.rsi.values.slice(-20)[i]
-                        }))}>
-                          <Line type="monotone" dataKey="value" stroke="#1F74F0" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <div className="h-12 sm:h-16">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={stockData.indicator_trends.rsi.dates.slice(-20).map((date, i) => ({
+                            value: stockData.indicator_trends.rsi.values.slice(-20)[i]
+                          }))}>
+                            <Line type="monotone" dataKey="value" stroke="#0891b2" strokeWidth={2} dot={false} />
+                            <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} />
+                            <ReferenceLine y={30} stroke="#10b981" strokeDasharray="3 3" strokeWidth={1} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <span>Oversold (30)</span>
+                        <span>Overbought (70)</span>
+                      </div>
                     </div>
                   )}
 
                   {stockData.indicators.ema && (
-                    <div className="bg-blue-50 dark:bg-blue-500/10 p-4 rounded-xl border border-blue-200 dark:border-blue-500/20">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-3 sm:p-4 rounded-xl border border-blue-300 dark:border-blue-600/30 indicator-card shadow-sm">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">EMA</span>
-                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">${stockData.indicators.ema}</span>
+                        <span className="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">EMA (20)</span>
+                        <span className="text-base sm:text-lg font-bold text-blue-700 dark:text-blue-400 indicator-value">${stockData.indicators.ema}</span>
                       </div>
-                      <ResponsiveContainer width="100%" height={60}>
-                        <LineChart data={stockData.indicator_trends.ema.dates.slice(-20).map((date, i) => ({
-                          value: stockData.indicator_trends.ema.values.slice(-20)[i]
-                        }))}>
-                          <Line type="monotone" dataKey="value" stroke="#1F74F0" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <div className="h-12 sm:h-16">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={stockData.indicator_trends.ema.dates.slice(-20).map((date, i) => ({
+                            value: stockData.indicator_trends.ema.values.slice(-20)[i]
+                          }))}>
+                            <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   )}
 
                   {stockData.indicators.macd && (
-                    <div className="bg-purple-50 dark:bg-purple-500/10 p-4 rounded-xl border border-purple-200 dark:border-purple-500/20">
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-3 sm:p-4 rounded-xl border border-purple-300 dark:border-purple-600/30 indicator-card shadow-sm">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">MACD</span>
-                        <span className="text-lg font-bold text-purple-600 dark:text-purple-400">{stockData.indicators.macd}</span>
+                        <span className="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">MACD</span>
+                        <span className="text-base sm:text-lg font-bold text-purple-700 dark:text-purple-400 indicator-value">{stockData.indicators.macd}</span>
                       </div>
-                      <ResponsiveContainer width="100%" height={60}>
-                        <ComposedChart data={stockData.indicator_trends.macd.dates.slice(-20).map((date, i) => ({
-                          value: stockData.indicator_trends.macd.values.slice(-20)[i],
-                          histogram: stockData.indicator_trends.macd.histogram.slice(-20)[i]
-                        }))}>
-                          <Bar dataKey="histogram" fill={stockData.indicators.macd_histogram >= 0 ? '#3A8AFF' : '#ef4444'} />
-                          <Line type="monotone" dataKey="value" stroke="#1F74F0" strokeWidth={2} dot={false} />
-                        </ComposedChart>
-                      </ResponsiveContainer>
+                      <div className="h-12 sm:h-16">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ComposedChart data={stockData.indicator_trends.macd.dates.slice(-20).map((date, i) => ({
+                            value: stockData.indicator_trends.macd.values.slice(-20)[i],
+                            histogram: stockData.indicator_trends.macd.histogram.slice(-20)[i]
+                          }))}>
+                            <Bar dataKey="histogram" fill={stockData.indicators.macd_histogram >= 0 ? '#10b981' : '#ef4444'} radius={[2, 2, 0, 0]} />
+                            <Line type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        <span>Signal: {stockData.indicators.macd_signal || 'N/A'}</span>
+                        <span>Hist: {stockData.indicators.macd_histogram?.toFixed(2) || 'N/A'}</span>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Stats */}
-              <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-dark-border">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-dark-elevated rounded-lg border border-gray-200 dark:border-dark-border">
-                    <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Market Cap</span>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">
+              <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+                <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Stats</h3>
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="flex justify-between items-center p-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+                    <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-semibold">Market Cap</span>
+                    <span className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">
                       {formatCurrencyCompact(stockData.market_cap)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-dark-elevated rounded-lg border border-gray-200 dark:border-dark-border">
-                    <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Volume</span>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">{formatVolume(stockData.volume)}</span>
+                  <div className="flex justify-between items-center p-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+                    <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-semibold">Volume</span>
+                    <span className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">{formatVolume(stockData.volume)}</span>
                   </div>
                   {stockData.pe_ratio && (
-                    <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-dark-elevated rounded-lg border border-gray-200 dark:border-dark-border">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">P/E Ratio</span>
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">{stockData.pe_ratio}</span>
+                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+                      <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-semibold">P/E Ratio</span>
+                      <span className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">{stockData.pe_ratio}</span>
+                    </div>
+                  )}
+                  {stockData.day_high && (
+                    <div className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 dark:bg-dark-elevated rounded-lg border border-gray-200 dark:border-dark-border">
+                      <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">Day High</span>
+                      <span className="text-xs sm:text-sm font-bold text-green-600 dark:text-green-400">${stockData.day_high}</span>
+                    </div>
+                  )}
+                  {stockData.day_low && (
+                    <div className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 dark:bg-dark-elevated rounded-lg border border-gray-200 dark:border-dark-border">
+                      <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">Day Low</span>
+                      <span className="text-xs sm:text-sm font-bold text-red-600 dark:text-red-400">${stockData.day_low}</span>
                     </div>
                   )}
                 </div>
@@ -697,41 +1248,139 @@ function Prediction() {
 
               {/* Sentiment */}
               {sentiment && (
-                <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-dark-border">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Stock Sentiment</h3>
+                <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white mb-2">Stock Sentiment</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Real-time market sentiment analysis
+                  </p>
                   <SentimentGauge sentiment={sentiment} />
                 </div>
               )}
 
               {/* News */}
               {news.length > 0 && (
-                <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-dark-border">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Latest News</h3>
-                  <div className="space-y-4">
-                    {news.slice(0, 3).map((article, index) => (
-                      <a
-                        key={index}
-                        href={article.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-elevated transition-colors border border-gray-200 dark:border-dark-border"
-                      >
-                        {article.image && (
-                          <img 
-                            src={article.image} 
-                            alt={article.headline} 
-                            className="w-full h-32 object-cover rounded-lg mb-3" 
-                          />
-                        )}
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 hover:text-cyan-600 dark:hover:text-cyan-400">
-                          {article.headline}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                          {new Date(article.datetime * 1000).toLocaleDateString()}
-                        </p>
-                      </a>
-                    ))}
+                <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">Latest News</h3>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg border border-cyan-200 dark:border-cyan-600/30">
+                      <div className="relative w-5 h-5 sm:w-6 sm:h-6 rounded bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden stock-logo-sm">
+                        <img 
+                          src={`https://financialmodelingprep.com/image-stock/${stockData.ticker}.png`}
+                          alt={stockData.ticker}
+                          className="w-full h-full object-contain stock-logo"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = `<span class="text-xs font-bold text-cyan-600 dark:text-cyan-400">${stockData.ticker.charAt(0)}</span>`;
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs sm:text-sm font-bold text-cyan-700 dark:text-cyan-400">{stockData.ticker}</span>
+                    </div>
                   </div>
+                  <div className="space-y-3 sm:space-y-4">
+                    {news.slice(0, 5).map((article, index) => {
+                      // Safely handle datetime conversion
+                      let newsDate;
+                      let isValidDate = false;
+                      
+                      try {
+                        // Check if datetime exists and is valid
+                        if (article.datetime) {
+                          newsDate = new Date(article.datetime * 1000);
+                          isValidDate = !isNaN(newsDate.getTime());
+                        }
+                      } catch (e) {
+                        console.warn('Invalid date for article:', article);
+                      }
+                      
+                      // Fallback to current date if invalid
+                      if (!isValidDate) {
+                        newsDate = new Date();
+                      }
+                      
+                      const now = new Date();
+                      const diffMs = now - newsDate;
+                      const diffMins = Math.floor(diffMs / 60000);
+                      const diffHours = Math.floor(diffMs / 3600000);
+                      const diffDays = Math.floor(diffMs / 86400000);
+                      
+                      let timeAgo;
+                      if (!isValidDate) {
+                        timeAgo = 'Recently';
+                      } else if (diffMins < 1) {
+                        timeAgo = 'Just now';
+                      } else if (diffMins < 60) {
+                        timeAgo = `${diffMins}m ago`;
+                      } else if (diffHours < 24) {
+                        timeAgo = `${diffHours}h ago`;
+                      } else if (diffDays < 7) {
+                        timeAgo = `${diffDays}d ago`;
+                      } else {
+                        timeAgo = newsDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                      }
+                      
+                      return (
+                        <a
+                          key={`${article.id || index}-${article.datetime || index}`}
+                          href={article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block p-3 rounded-lg bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-600 hover:border-cyan-400 dark:hover:border-cyan-500 group active-scale"
+                        >
+                          <div className="flex gap-3">
+                            {article.image && (
+                              <div className="flex-shrink-0">
+                                <img 
+                                  src={article.image} 
+                                  alt={article.headline} 
+                                  className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg news-image" 
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors mb-2">
+                                {article.headline}
+                              </p>
+                              {article.summary && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
+                                  {article.summary}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500 dark:text-gray-400">
+                                <span className="font-medium bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">
+                                  {article.source || 'Finnhub'}
+                                </span>
+                                <span>•</span>
+                                <time className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {timeAgo}
+                                </time>
+                                {isValidDate && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="hidden sm:inline truncate">
+                                      {newsDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                  {news.length > 5 && (
+                    <div className="mt-4 text-center">
+                      <button className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium">
+                        Load more news ({news.length - 5} more articles)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

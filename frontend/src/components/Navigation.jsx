@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Menu, X, Home, Activity, Info, User, Sun, Moon } from 'lucide-react';
+import { TrendingUp, BarChart3, Activity, Menu, X, Home, Info, User, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -86,14 +86,67 @@ const Navigation = () => {
     <nav className="bg-white dark:bg-dark-card/95 backdrop-blur-lg shadow-lg sticky top-0 z-50 border-b border-gray-200 dark:border-dark-border transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+          {/* Premium Animated Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 p-2 rounded-xl group-hover:scale-110 transition-transform shadow-lg">
-              <BarChart3 className="w-6 h-6 text-white" />
+            {/* Advanced Animated Stock Chart Logo */}
+            <div className="relative w-12 h-12 flex items-center justify-center">
+              {/* Rotating outer glow */}
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-purple-500/20 dark:from-cyan-400/30 dark:via-blue-400/30 dark:to-purple-400/30 blur-lg animate-pulse-glow"></div>
+              
+              {/* Rotating border gradient */}
+              <div className="absolute inset-0 rounded-xl border-2 border-transparent bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 dark:from-cyan-400 dark:via-blue-400 dark:to-purple-400 animate-spin-slow opacity-50" style={{ WebkitMaskImage: 'linear-gradient(0deg, transparent 0%, black 50%, transparent 100%)', maskImage: 'linear-gradient(0deg, transparent 0%, black 50%, transparent 100%)' }}></div>
+              
+              {/* Main logo container */}
+              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 overflow-hidden group-hover:scale-110 transition-transform duration-300">
+                {/* Animated candlestick bars */}
+                <div className="absolute bottom-1 left-1 w-0.5 bg-gradient-to-t from-green-500 to-green-400 animate-bar-1" style={{ height: '35%' }}></div>
+                <div className="absolute bottom-1 left-2 w-0.5 bg-gradient-to-t from-red-500 to-red-400 animate-bar-2" style={{ height: '20%' }}></div>
+                <div className="absolute bottom-1 left-3 w-0.5 bg-gradient-to-t from-green-500 to-green-400 animate-bar-3" style={{ height: '45%' }}></div>
+                <div className="absolute bottom-1 left-4 w-0.5 bg-gradient-to-t from-green-500 to-green-400 animate-bar-4" style={{ height: '55%' }}></div>
+                <div className="absolute bottom-1 right-3 w-0.5 bg-gradient-to-t from-red-500 to-red-400 animate-bar-5" style={{ height: '25%' }}></div>
+                <div className="absolute bottom-1 right-1 w-0.5 bg-gradient-to-t from-green-500 to-green-400 animate-bar-6" style={{ height: '60%' }}></div>
+                
+                {/* Animated trend line */}
+                <svg className="absolute inset-0 w-full h-full opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <path 
+                    d="M 0,80 Q 25,70 50,45 T 100,20" 
+                    stroke="url(#navLineGradient)" 
+                    strokeWidth="3" 
+                    fill="none"
+                    className="animate-draw-line"
+                    strokeDasharray="200"
+                    strokeDashoffset="200"
+                  />
+                  <defs>
+                    <linearGradient id="navLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#06b6d4" />
+                      <stop offset="50%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#8b5cf6" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              
+              {/* Center icon badge */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-cyan-500 via-blue-600 to-purple-600 dark:from-cyan-400 dark:via-blue-500 dark:to-purple-500 flex items-center justify-center shadow-lg animate-float-subtle">
+                  <div className="animate-icon-rotate-fast">
+                    <BarChart3 className="absolute w-3.5 h-3.5 text-white animate-fade-1" />
+                    <TrendingUp className="absolute w-3.5 h-3.5 text-white animate-fade-2" />
+                    <Activity className="absolute w-3.5 h-3.5 text-white animate-fade-3" />
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {/* Branding Text */}
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">AI Insights</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Stock Predictions</p>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 dark:from-cyan-400 dark:via-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+                AI Stock Price Predictions
+              </h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
+                Powered by <span className="font-semibold text-cyan-600 dark:text-cyan-400">AI Insights</span>
+              </p>
             </div>
           </Link>
 
@@ -248,6 +301,137 @@ const Navigation = () => {
           </>
         )}
       </div>
+
+      {/* Premium CSS Animations */}
+      <style jsx>{`
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse-glow {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        @keyframes float-subtle {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-2px); }
+        }
+
+        @keyframes draw-line {
+          to { strokeDashoffset: 0; }
+        }
+
+        @keyframes icon-rotate-fast {
+          0%, 100% { transform: rotate(0deg); }
+          33% { transform: rotate(120deg); }
+          66% { transform: rotate(240deg); }
+        }
+
+        @keyframes fade-1 {
+          0%, 100% { opacity: 1; }
+          33%, 66% { opacity: 0; }
+        }
+
+        @keyframes fade-2 {
+          0%, 100% { opacity: 0; }
+          33% { opacity: 1; }
+          66% { opacity: 0; }
+        }
+
+        @keyframes fade-3 {
+          0%, 100% { opacity: 0; }
+          33% { opacity: 0; }
+          66% { opacity: 1; }
+        }
+
+        @keyframes bar-1 {
+          0%, 100% { height: 35%; }
+          50% { height: 50%; }
+        }
+
+        @keyframes bar-2 {
+          0%, 100% { height: 20%; }
+          50% { height: 35%; }
+        }
+
+        @keyframes bar-3 {
+          0%, 100% { height: 45%; }
+          50% { height: 30%; }
+        }
+
+        @keyframes bar-4 {
+          0%, 100% { height: 55%; }
+          50% { height: 65%; }
+        }
+
+        @keyframes bar-5 {
+          0%, 100% { height: 25%; }
+          50% { height: 15%; }
+        }
+
+        @keyframes bar-6 {
+          0%, 100% { height: 60%; }
+          50% { height: 70%; }
+        }
+
+        .animate-spin-slow {
+          animation: spin-slow 10s linear infinite;
+        }
+
+        .animate-pulse-glow {
+          animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        .animate-float-subtle {
+          animation: float-subtle 3s ease-in-out infinite;
+        }
+
+        .animate-draw-line {
+          animation: draw-line 3s ease-in-out infinite;
+        }
+
+        .animate-icon-rotate-fast {
+          animation: icon-rotate-fast 4s ease-in-out infinite;
+        }
+
+        .animate-fade-1 {
+          animation: fade-1 4s ease-in-out infinite;
+        }
+
+        .animate-fade-2 {
+          animation: fade-2 4s ease-in-out infinite;
+        }
+
+        .animate-fade-3 {
+          animation: fade-3 4s ease-in-out infinite;
+        }
+
+        .animate-bar-1 {
+          animation: bar-1 1.8s ease-in-out infinite;
+        }
+
+        .animate-bar-2 {
+          animation: bar-2 2.1s ease-in-out infinite;
+        }
+
+        .animate-bar-3 {
+          animation: bar-3 1.6s ease-in-out infinite;
+        }
+
+        .animate-bar-4 {
+          animation: bar-4 2.3s ease-in-out infinite;
+        }
+
+        .animate-bar-5 {
+          animation: bar-5 1.9s ease-in-out infinite;
+        }
+
+        .animate-bar-6 {
+          animation: bar-6 1.7s ease-in-out infinite;
+        }
+      `}</style>
     </nav>
   );
 };

@@ -46,6 +46,10 @@ ENV/
 .env.production
 *.env
 
+# Cache Directory (API response caching)
+cache/
+*.cache
+
 # MLOps - Model Registry (keep structure, ignore large files)
 mlops/model_registry/*/model.h5
 mlops/model_registry/*/scaler.pkl

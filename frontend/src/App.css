@@ -37,5 +37,40 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* Prevent text size adjustment on mobile */
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Better touch scrolling */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent tap highlighting */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Improve touch targets for mobile */
+@media (max-width: 768px) {
+  button, a, input, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better spacing for mobile charts */
+  .recharts-wrapper {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  /* Prevent zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Smooth transitions */
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 

@@ -5,38 +5,38 @@ const About = () => {
   const features = [
     {
       icon: Brain,
-      title: 'AI-Powered Predictions',
-      description: 'Advanced machine learning algorithms analyze market trends to provide accurate stock price forecasts.',
+      title: 'Advanced Machine Learning',
+      description: 'Neural networks trained on decades of market data identify patterns and predict future price movements with exceptional accuracy.',
       gradient: 'from-cyan-500 to-blue-500'
     },
     {
       icon: TrendingUp,
-      title: 'Real-Time Analysis',
-      description: 'Get instant access to live market data, technical indicators, and price movements as they happen.',
+      title: 'Real-Time Market Intelligence',
+      description: 'Live price feeds, technical indicators, and candlestick charts update continuously to keep you ahead of market movements.',
       gradient: 'from-blue-500 to-purple-500'
     },
     {
       icon: Shield,
-      title: 'Reliable & Secure',
-      description: 'Built with enterprise-grade security and data integrity to ensure your analysis is always accurate.',
+      title: 'Enterprise-Grade Security',
+      description: 'Bank-level encryption and authentication protect your data while ensuring reliable, accurate analysis you can trust.',
       gradient: 'from-purple-500 to-pink-500'
     },
     {
       icon: Zap,
-      title: 'Lightning Fast',
-      description: 'Optimized performance delivers predictions and analysis in seconds, not minutes.',
+      title: 'Instant Analysis',
+      description: 'High-performance computing infrastructure delivers comprehensive stock analysis and forecasts in under 2 seconds.',
       gradient: 'from-pink-500 to-rose-500'
     },
     {
       icon: Target,
-      title: 'Smart Trading Signals',
-      description: 'Clear BUY, SELL, or HOLD recommendations help you make confident investment decisions.',
+      title: 'Actionable Recommendations',
+      description: 'Clear BUY, SELL, or HOLD signals with confidence scores help you execute trades at the optimal time.',
       gradient: 'from-rose-500 to-orange-500'
     },
     {
       icon: BarChart3,
-      title: 'Comprehensive Charts',
-      description: 'Interactive visualizations make complex market data easy to understand and act upon.',
+      title: 'Professional Visualizations',
+      description: 'Interactive charts with technical overlays, volume analysis, and performance metrics make complex data intuitive.',
       gradient: 'from-orange-500 to-amber-500'
     }
   ];
@@ -51,34 +51,34 @@ const About = () => {
   const benefits = [
     {
       icon: Sparkles,
-      text: 'Make data-driven investment decisions with AI-powered insights'
+      text: 'Execute trades with confidence using AI-powered forecasts backed by historical accuracy metrics'
     },
     {
       icon: Clock,
-      text: 'Save time with automated technical analysis and predictions'
+      text: 'Save hours of research time with automated technical analysis and multi-day price predictions'
     },
     {
       icon: Shield,
-      text: 'Reduce risk by understanding market sentiment and trends'
+      text: 'Minimize investment risk by understanding market sentiment, trend strength, and volatility patterns'
     },
     {
       icon: LineChart,
-      text: 'Track multiple stocks with detailed performance metrics'
+      text: 'Monitor unlimited stocks with customizable watchlists and detailed performance tracking'
     },
     {
       icon: TrendingUp,
-      text: 'Access real-time news and sentiment analysis'
+      text: 'Stay informed with real-time financial news and social sentiment analysis from multiple sources'
     },
     {
       icon: Target,
-      text: 'Get multi-day forecasts to plan your trading strategy'
+      text: 'Plan strategic entries and exits using 5-day price forecasts with confidence intervals'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120]">
       {/* Hero Section */}
-      <div className="relative overflow-hidden bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border">
+      <div className="relative overflow-hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 dark:from-cyan-500/10 dark:via-blue-500/10 dark:to-purple-500/10" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
           <div className="text-center max-w-3xl mx-auto">
@@ -90,16 +90,17 @@ const About = () => {
               About <span className="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">AI Insights</span>
             </h1>
             <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
-              Empowering investors with cutting-edge artificial intelligence to make smarter, 
-              data-driven decisions in the stock market. Our platform combines machine learning, 
-              real-time data analysis, and comprehensive market insights.
+              Empowering retail investors with institutional-grade artificial intelligence to level 
+              the playing field. Our platform delivers professional stock analysis, real-time market 
+              intelligence, and AI-powered predictions previously available only to hedge funds and 
+              investment banks.
             </p>
           </div>
         </div>
       </div>
 
       {/* Stats Section */}
-      <div className="bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border py-12">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, index) => (
@@ -124,10 +125,11 @@ const About = () => {
             <div className="max-w-3xl mx-auto text-center">
               <h2 className="text-3xl sm:text-4xl font-bold mb-6">Our Mission</h2>
               <p className="text-lg sm:text-xl leading-relaxed opacity-95">
-                We believe that everyone should have access to professional-grade investment tools. 
-                Our mission is to democratize stock market analysis by leveraging artificial intelligence 
-                to provide accurate predictions, real-time insights, and actionable recommendations 
-                that were once available only to institutional investors.
+                To democratize professional investment analysis by making institutional-grade AI technology 
+                accessible to every investor. We believe sophisticated market intelligence shouldn't be 
+                exclusive to Wall Street—everyone deserves the tools to build wealth through informed, 
+                data-driven decisions. Our advanced algorithms process millions of data points daily to 
+                deliver the insights you need to succeed.
               </p>
             </div>
           </div>
@@ -150,7 +152,7 @@ const About = () => {
               return (
                 <div
                   key={index}
-                  className="group bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-2xl p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                  className="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                 >
                   <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                     <Icon className="w-6 h-6 text-white" />
@@ -169,7 +171,7 @@ const About = () => {
 
         {/* Benefits Section */}
         <div className="mb-16">
-          <div className="bg-white dark:bg-dark-card rounded-3xl border border-gray-200 dark:border-dark-border p-8 sm:p-12">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700 p-8 sm:p-12">
             <div className="text-center mb-10">
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
                 Why Choose AI Insights?

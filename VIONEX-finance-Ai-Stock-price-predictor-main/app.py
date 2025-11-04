@@ -196,7 +196,47 @@ def health_check():
         'success': True,
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'code_version': 'v3-with-explicit-prediction-route'
+        'code_version': 'v4-with-intelligent-caching',
+        'cache_enabled': True
+    })
+
+# Cache management endpoints
+@app.route('/api/cache/stats')
+@firebase_auth_required(admin_only=True)
+def cache_stats():
+    """Get cache statistics (admin only)"""
+    from cache_manager import get_cache
+    cache_mgr = get_cache()
+    stats = cache_mgr.get_stats()
+    return jsonify({
+        'success': True,
+        'cache_stats': stats,
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/api/cache/clear', methods=['POST'])
+@firebase_auth_required(admin_only=True)
+def clear_cache():
+    """Clear all cache (admin only)"""
+    from cache_manager import get_cache
+    cache_mgr = get_cache()
+    removed = cache_mgr.clear_all()
+    return jsonify({
+        'success': True,
+        'message': f'Cleared {removed} cache files',
+        'files_removed': removed
+    })
+
+@app.route('/api/cache/cleanup', methods=['POST'])
+def cleanup_expired_cache():
+    """Clean up expired cache files (public endpoint, runs automatically)"""
+    from cache_manager import get_cache
+    cache_mgr = get_cache()
+    removed = cache_mgr.clear_expired()
+    return jsonify({
+        'success': True,
+        'message': f'Cleaned up {removed} expired cache files',
+        'files_removed': removed
     })
 
 # TEST ROUTE - To verify new code is deployed
@@ -929,4 +969,4 @@ def predict_with_technical_analysis(hist, current_price):
 if __name__ == '__main__':
     # Get port from environment variable (Azure sets this)
     port = int(os.environ.get('PORT', 8000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=True)

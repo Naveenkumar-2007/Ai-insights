@@ -1,6 +1,7 @@
 """
 Stock Data API Module using Twelve Data and Alpha Vantage
 Provides reliable stock data access from cloud hosting
+WITH INTELLIGENT CACHING TO MINIMIZE API CALLS
 """
 import requests
 import pandas as pd
@@ -8,9 +9,13 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import logging
+from cache_manager import get_cache
 
 # Setup logging
 logger = logging.getLogger(__name__)
+
+# Initialize cache manager
+cache = get_cache()
 
 # Optional fallback provider
 try:
@@ -257,6 +262,7 @@ def get_stock_history(
 ):
     """
     Fetch historical stock data with automatic fallback providers when available.
+    USES INTELLIGENT CACHING TO MINIMIZE API CALLS (1 hour cache TTL)
 
     Args:
         ticker (str): Stock symbol (e.g., 'AAPL', 'GOOGL')
@@ -270,6 +276,26 @@ def get_stock_history(
         pd.DataFrame or (pd.DataFrame, dict): Historical data with columns [Open, High, Low, Close, Volume].
         Returns empty DataFrame if all providers fail.
     """
+    
+    # Check cache first (1 hour TTL for historical data)
+    cache_params = {
+        'ticker': ticker,
+        'days': days,
+        'interval': interval,
+        'exchange': exchange,
+        'country': country
+    }
+    
+    cached_data = cache.get('stock_history', cache_params, ttl_seconds=3600)  # 1 hour cache
+    if cached_data:
+        df = pd.DataFrame(cached_data['dataframe'])
+        if not df.empty and 'datetime' in df.columns:
+            df['datetime'] = pd.to_datetime(df['datetime'])
+            df.set_index('datetime', inplace=True)
+        
+        if return_info:
+            return df, cached_data.get('info', {})
+        return df
 
     info = {
         'symbol': ticker.upper() if isinstance(ticker, str) else ticker,
@@ -281,7 +307,7 @@ def get_stock_history(
     provider_error = None
 
     try:
-        print(f" Fetching {ticker} data from Twelve Data API...")
+        print(f"📊 Fetching {ticker} data from Twelve Data API...")
 
         url = f'{BASE_URL}/time_series'
         params = {
@@ -298,10 +324,10 @@ def get_stock_history(
 
         if payload.get('status') == 'error':
             provider_error = payload.get('message', 'Unknown error')
-            print(f" API Error: {provider_error}")
+            print(f"❌ API Error: {provider_error}")
         elif 'values' not in payload:
             provider_error = 'No data returned from Twelve Data'
-            print(f" No data returned for {ticker}")
+            print(f"❌ No data returned for {ticker}")
         else:
             data_frame = pd.DataFrame(payload['values'])
             data_frame['datetime'] = pd.to_datetime(data_frame['datetime'])
@@ -323,13 +349,21 @@ def get_stock_history(
             data_frame['Dividends'] = 0.0
             data_frame['Stock Splits'] = 0.0
 
-            print(f"Successfully fetched {len(data_frame)} data points for {ticker}")
+            print(f"✅ Successfully fetched {len(data_frame)} data points for {ticker}")
             if not data_frame.empty:
                 print(
-                    f"Date range: {data_frame.index[0].strftime('%Y-%m-%d')} "
+                    f"📅 Date range: {data_frame.index[0].strftime('%Y-%m-%d')} "
                     f"to {data_frame.index[-1].strftime('%Y-%m-%d')}"
                 )
-                print(f"Latest price: ${data_frame['Close'].iloc[-1]:.2f}")
+                print(f"💵 Latest price: ${data_frame['Close'].iloc[-1]:.2f}")
+                
+                # Cache the successful result
+                cache_entry = {
+                    'dataframe': data_frame.reset_index().to_dict('records'),
+                    'info': info
+                }
+                cache.set('stock_history', cache_params, cache_entry)
+                print(f"💾 Cached data for {ticker}")
 
     except requests.exceptions.RequestException as exc:
         provider_error = f'Network error fetching {ticker}: {exc}'
@@ -645,6 +679,7 @@ def get_company_news(ticker, days=7):
     """
     Fetch company news from Finnhub API - ONLY news specifically about the searched stock
     Uses company logo for ALL news articles (with fallback to default logo)
+    USES INTELLIGENT CACHING (2 hour TTL to minimize API calls)
     
     Args:
         ticker (str): Stock symbol
@@ -653,8 +688,16 @@ def get_company_news(ticker, days=7):
     Returns:
         list: List of news articles with title, summary, url, source, image, and timestamp
     """
+    
+    # Check cache first (2 hour TTL for news)
+    cache_params = {'ticker': ticker, 'days': days}
+    cached_news = cache.get('company_news', cache_params, ttl_seconds=7200)  # 2 hour cache
+    if cached_news:
+        print(f"💾 Using cached news for {ticker}")
+        return cached_news
+    
     try:
-        print(f"Fetching news for {ticker} from Finnhub API only...")
+        print(f"📰 Fetching news for {ticker} from Finnhub API only...")
         
         # Get company profile to get company name AND logo
         company_name = None
@@ -750,9 +793,14 @@ def get_company_news(ticker, days=7):
             if len(news_articles) >= 10:
                 break
         
-        print(f"Fetched {len(news_articles)} relevant news articles for {ticker} from Finnhub only")
+        print(f"✅ Fetched {len(news_articles)} relevant news articles for {ticker} from Finnhub only")
         print(f"All articles using company logo: {company_logo}")
         print(f"All data from Finnhub API - No Yahoo Finance used")
+        
+        # Cache the results (2 hour TTL)
+        cache.set('company_news', cache_params, news_articles)
+        print(f"💾 Cached news for {ticker}")
+        
         return news_articles
         
     except Exception as e:
@@ -763,6 +811,7 @@ def get_company_news(ticker, days=7):
 def get_sentiment_analysis(ticker):
     """
     Fetch sentiment analysis from Finnhub API
+    USES INTELLIGENT CACHING (4 hour TTL - sentiment changes slowly)
     
     Args:
         ticker (str): Stock symbol
@@ -770,8 +819,16 @@ def get_sentiment_analysis(ticker):
     Returns:
         dict: Sentiment data including overall sentiment, score, and breakdown
     """
+    
+    # Check cache first (4 hour TTL for sentiment)
+    cache_params = {'ticker': ticker}
+    cached_sentiment = cache.get('sentiment_analysis', cache_params, ttl_seconds=14400)  # 4 hour cache
+    if cached_sentiment:
+        print(f"💾 Using cached sentiment for {ticker}")
+        return cached_sentiment
+    
     try:
-        print(f"Fetching sentiment analysis for {ticker} from Finnhub...")
+        print(f"🎯 Fetching sentiment analysis for {ticker} from Finnhub...")
         
         # Get news sentiment
         url = f'{FINNHUB_BASE_URL}/news-sentiment'
@@ -819,7 +876,12 @@ def get_sentiment_analysis(ticker):
             'buzz_score': buzz.get('buzz', 0)
         }
         
-        print(f"Sentiment: {sentiment_label} (Score: {overall_score:.2f})")
+        print(f"✅ Sentiment: {sentiment_label} (Score: {overall_score:.2f})")
+        
+        # Cache the result (4 hour TTL)
+        cache.set('sentiment_analysis', cache_params, result)
+        print(f"💾 Cached sentiment for {ticker}")
+        
         return result
         
     except Exception as e:

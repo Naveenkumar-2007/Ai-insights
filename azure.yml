@@ -9,7 +9,7 @@ runtime: python|3.12
 # Build configuration
 build:
   os: linux
-  
+  r
 # App settings
 app_settings:
   - name: SCM_DO_BUILD_DURING_DEPLOYMENT

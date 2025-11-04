@@ -90,10 +90,10 @@ const Home = () => {
   }, [currentStockIndex]);
 
   const features = [
-    { icon: Brain, title: 'AI Predictions', description: 'Advanced neural networks forecast market movements with precision.' },
-    { icon: BarChart3, title: 'Technical Indicators', description: 'Professional-grade analysis tools for informed trading decisions.' },
-    { icon: MessageSquare, title: 'Sentiment Insights', description: 'Real-time market sentiment from multiple data sources.' },
-    { icon: Activity, title: 'Real-Time Data', description: 'Live market data updates every second for instant analysis.' }
+    { icon: Brain, title: 'AI-Powered Forecasts', description: 'Machine learning algorithms analyze historical patterns to predict future price movements with high accuracy.' },
+    { icon: BarChart3, title: 'Advanced Technical Analysis', description: 'Access professional charting tools including candlestick patterns, volume indicators, and trend analysis.' },
+    { icon: MessageSquare, title: 'Market Sentiment Analysis', description: 'Track investor sentiment and social media trends to gauge market psychology and timing.' },
+    { icon: Activity, title: 'Live Market Data', description: 'Real-time price updates, daily forecasts, and comprehensive financial metrics for informed decisions.' }
   ];
 
   const renderMiniChart = (data, change) => {
