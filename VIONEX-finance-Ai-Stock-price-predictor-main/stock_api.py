@@ -372,27 +372,89 @@ def get_stock_history(
         provider_error = f'Error processing {ticker} data: {exc}'
         print(provider_error)
 
-    # Attempt Alpha Vantage fallback when Twelve Data fails or returns insufficient data
+    # Attempt fallbacks when Twelve Data fails or returns insufficient data
     needs_fallback = data_frame.empty or len(data_frame) < 2
     allow_fallback = str(interval).lower() in {'1day', '1d', 'daily'}
 
-    # Alpha Vantage fallback for stocks not available on Twelve Data (cloud-friendly, no Yahoo Finance)
+    # FIRST FALLBACK: Try Finnhub API
+    if needs_fallback and allow_fallback and FINNHUB_API_KEY:
+        logger.info(f"🔄 Trying Finnhub fallback for {ticker}...")
+        print(f"Twelve Data unavailable for {ticker}, trying Finnhub...")
+        
+        try:
+            # Calculate date range
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=days + 30)
+            
+            # Finnhub candle endpoint
+            finnhub_url = f"{FINNHUB_BASE_URL}/stock/candle"
+            params = {
+                'symbol': ticker.upper(),
+                'resolution': 'D',  # Daily resolution
+                'from': int(start_date.timestamp()),
+                'to': int(end_date.timestamp()),
+                'token': FINNHUB_API_KEY
+            }
+            
+            print(f"  Trying Finnhub with {ticker}...")
+            response = requests.get(finnhub_url, params=params, timeout=15)
+            finnhub_data = response.json()
+            
+            if finnhub_data.get('s') == 'ok' and finnhub_data.get('c'):
+                # Finnhub returns arrays: c=close, h=high, l=low, o=open, v=volume, t=timestamp
+                df_data = []
+                for i in range(len(finnhub_data['c'])):
+                    df_data.append({
+                        'datetime': datetime.fromtimestamp(finnhub_data['t'][i]),
+                        'Open': float(finnhub_data['o'][i]),
+                        'High': float(finnhub_data['h'][i]),
+                        'Low': float(finnhub_data['l'][i]),
+                        'Close': float(finnhub_data['c'][i]),
+                        'Volume': int(finnhub_data['v'][i])
+                    })
+                
+                if df_data:
+                    finnhub_df = pd.DataFrame(df_data)
+                    finnhub_df.set_index('datetime', inplace=True)
+                    finnhub_df.sort_index(inplace=True)
+                    
+                    # Limit to requested days
+                    if days and len(finnhub_df) > days:
+                        finnhub_df = finnhub_df.tail(days)
+                    
+                    # Add required columns
+                    finnhub_df['Dividends'] = 0.0
+                    finnhub_df['Stock Splits'] = 0.0
+                    
+                    data_frame = finnhub_df
+                    info['source'] = 'finnhub'
+                    needs_fallback = False
+                    
+                    logger.info(f"✅ Finnhub: Successfully fetched {len(data_frame)} data points for {ticker}")
+                    print(f"✅ Finnhub: Successfully fetched {len(data_frame)} data points for {ticker}")
+                    
+                    # Cache the successful result
+                    cache_entry = {
+                        'dataframe': data_frame.reset_index().to_dict('records'),
+                        'info': info
+                    }
+                    cache.set('stock_history', cache_params, cache_entry)
+                    print(f"💾 Cached Finnhub data for {ticker}")
+            else:
+                error_msg = finnhub_data.get('error', 'No data available')
+                print(f"  Finnhub: {error_msg}")
+                
+        except Exception as e:
+            logger.error(f"❌ Finnhub error for {ticker}: {str(e)}")
+            print(f"  Finnhub error: {str(e)}")
+
+    # SECOND FALLBACK: Try Alpha Vantage API (last resort)
     if needs_fallback and allow_fallback and ALPHA_VANTAGE_API_KEY:
         logger.info(f"🔄 Trying Alpha Vantage fallback for {ticker}...")
-        print(f"Twelve Data unavailable for {ticker}, trying Alpha Vantage...")
+        print(f"Finnhub unavailable for {ticker}, trying Alpha Vantage as last resort...")
         
-        # Try ticker with various exchange suffixes for international stocks
+        # Try ticker - ONLY base symbol to avoid exhausting API limits
         symbols_to_try = [ticker]
-        
-        # If no dot in ticker, try common suffixes (especially for Indian stocks)
-        if '.' not in ticker:
-            symbols_to_try.extend([
-                f"{ticker}.NS",  # NSE (India)
-                f"{ticker}.BO",  # BSE (India)
-                f"{ticker}.L",   # London
-                f"{ticker}.TO",  # Toronto
-                f"{ticker}.AX",  # Australia
-            ])
         
         for symbol_attempt in symbols_to_try:
             try:
@@ -446,6 +508,15 @@ def get_stock_history(
                         
                         logger.info(f"✅ Alpha Vantage: Successfully fetched {len(data_frame)} data points for {symbol_attempt}")
                         print(f"✅ Alpha Vantage: Successfully fetched {len(data_frame)} data points for {symbol_attempt}")
+                        
+                        # Cache the successful result
+                        cache_entry = {
+                            'dataframe': data_frame.reset_index().to_dict('records'),
+                            'info': info
+                        }
+                        cache.set('stock_history', cache_params, cache_entry)
+                        print(f"💾 Cached Alpha Vantage data for {ticker}")
+                        
                         break  # Exit the loop, we found data!
                         
                 else:
@@ -458,9 +529,23 @@ def get_stock_history(
                 print(f"  {symbol_attempt} error: {str(e)}")
     
     if needs_fallback:
-        # If both Twelve Data and Alpha Vantage failed, provide user-friendly error
-        # Don't expose internal API details, limits, or provider-specific messages
-        info['provider_message'] = f"Unable to retrieve data for {ticker}. Please verify the stock symbol is correct."
+        # If both Twelve Data and Alpha Vantage failed, try to return stale cache data
+        # Check cache again without TTL restriction
+        cached_data_stale = cache.get('stock_history', cache_params, ttl_seconds=None)  # No TTL check
+        if cached_data_stale and cached_data_stale.get('dataframe'):
+            df = pd.DataFrame(cached_data_stale['dataframe'])
+            if not df.empty and 'datetime' in df.columns:
+                df['datetime'] = pd.to_datetime(df['datetime'])
+                df.set_index('datetime', inplace=True)
+                data_frame = df
+                info['source'] = 'cache-stale'
+                info['provider_message'] = f"Using cached data for {ticker} (APIs temporarily unavailable)"
+                print(f"⚠️ Using stale cached data for {ticker} - APIs exhausted")
+                needs_fallback = False
+        
+        # If still no data, provide user-friendly error
+        if needs_fallback:
+            info['provider_message'] = f"Unable to retrieve data for {ticker}. Please verify the stock symbol is correct."
     
     if not needs_fallback and info['provider_message'] is None and provider_error:
         # Log provider error for debugging but don't expose to user

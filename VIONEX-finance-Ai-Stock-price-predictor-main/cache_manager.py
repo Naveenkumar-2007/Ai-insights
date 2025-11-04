@@ -54,14 +54,14 @@ class CacheManager:
         is_trading_time = 14 <= hour < 21  # Approximate EST in UTC
         return is_weekday and is_trading_time
     
-    def get(self, endpoint: str, params: Dict[str, Any], ttl_seconds: int) -> Optional[Dict[str, Any]]:
+    def get(self, endpoint: str, params: Dict[str, Any], ttl_seconds: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """
         Get cached data if valid
         
         Args:
             endpoint: API endpoint identifier
             params: Request parameters
-            ttl_seconds: Time-to-live in seconds
+            ttl_seconds: Time-to-live in seconds (None = no TTL check, return any cached data)
             
         Returns:
             Cached data if valid, None otherwise
@@ -76,6 +76,11 @@ class CacheManager:
             with open(cache_path, 'r', encoding='utf-8') as f:
                 cached = json.load(f)
             
+            # If ttl_seconds is None, return cached data regardless of age
+            if ttl_seconds is None:
+                logger.info(f"Cache HIT for {endpoint} (stale mode, no TTL check)")
+                return cached['data']
+            
             # Check if cache is still valid
             cached_time = datetime.fromisoformat(cached['timestamp'])
             age_seconds = (datetime.now() - cached_time).total_seconds()
@@ -85,8 +90,7 @@ class CacheManager:
                 return cached['data']
             else:
                 logger.info(f"Cache EXPIRED for {endpoint} (age: {age_seconds:.0f}s, TTL: {ttl_seconds}s)")
-                # Clean up expired cache
-                os.remove(cache_path)
+                # Don't delete - keep for stale fallback
                 return None
                 
         except (json.JSONDecodeError, KeyError, ValueError) as e:
