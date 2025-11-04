@@ -16,10 +16,26 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Prevent zoom on double-tap for all elements */
+/* Prevent zoom on double-tap for all elements EXCEPT charts */
 * {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow pinch-zoom and pan on charts/graphs */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-responsive-container,
+svg,
+canvas {
+  touch-action: pan-x pan-y pinch-zoom !important;
+}
+
+/* Specific chart areas that should allow zoom */
+.chart-container,
+[class*="chart"],
+[class*="Chart"] {
+  touch-action: pan-x pan-y pinch-zoom !important;
 }
 
 /* Improve touch targets - minimum 44x44px for accessibility */
