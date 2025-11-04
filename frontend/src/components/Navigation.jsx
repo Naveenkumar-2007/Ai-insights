@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Menu, X, Home, Activity, Info } from 'lucide-react';
+import { BarChart3, Menu, X, Home, Activity, Info, User, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const { currentUser } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const menuRef = useRef(null);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -64,7 +66,7 @@ const Navigation = () => {
 
   const navLinks = [
     { path: '/', label: 'Home', icon: Home },
-    { path: '/prediction', label: 'Prediction', icon: Activity },
+    { path: '/prediction', label: 'Start Predicting', icon: Activity },
     { path: '/about', label: 'About', icon: Info }
   ];
 
@@ -81,26 +83,30 @@ const Navigation = () => {
   const getUserName = () => currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
 
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-50 border-b border-brand-50/60" ref={menuRef}>
+    <nav className="bg-white dark:bg-dark-card/95 backdrop-blur-lg shadow-lg sticky top-0 z-50 border-b border-gray-200 dark:border-dark-border transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="bg-gradient-to-br from-brand-500 to-brand-600 p-2 rounded-lg group-hover:scale-110 transition-transform shadow-sm">
+            <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 p-2 rounded-xl group-hover:scale-110 transition-transform shadow-lg">
               <BarChart3 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-brand-text">AI Insights</h1>
-              <p className="text-xs text-brand-muted hidden sm:block">Powered by AI technology</p>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">AI Insights</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Stock Predictions</p>
             </div>
           </Link>
 
-          <div className="hidden md:flex items-center gap-6">
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-4">
             {navLinks.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
                 to={path}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                  isActive(path) ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-brand-muted hover:text-brand-600'
+                  isActive(path) 
+                    ? 'bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' 
+                    : 'text-gray-600 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-gray-100 dark:hover:bg-dark-elevated'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -108,24 +114,33 @@ const Navigation = () => {
               </Link>
             ))}
 
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-elevated transition-colors text-gray-600 dark:text-gray-300"
+              aria-label="Toggle theme"
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
             {currentUser ? (
               <Link
                 to="/profile"
-                className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-elevated transition-colors"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-lg">
                   {getUserInitial()}
                 </div>
-                <span className="text-sm font-medium text-brand-text uppercase">{getUserName()}</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{getUserName()}</span>
               </Link>
             ) : (
               <div className="flex items-center gap-2">
-                <Link to="/login" className="px-4 py-2 text-sm font-medium text-brand-muted hover:text-brand-text">
-                  Sign In
+                <Link to="/login" className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400">
+                  Log In
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 text-sm font-medium text-white bg-brand rounded-lg hover:bg-brand-hover shadow"
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg hover:shadow-lg hover:scale-105 transition-all"
                 >
                   Sign Up
                 </Link>
@@ -133,10 +148,10 @@ const Navigation = () => {
             )}
           </div>
 
-          {/* Mobile menu button - Larger touch target */}
+          {/* Mobile menu button */}
           <button
             onClick={() => setIsOpen((prev) => !prev)}
-            className="md:hidden p-3 rounded-lg hover:bg-brand-50 transition-colors active:scale-95"
+            className="md:hidden p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-elevated transition-colors active:scale-95 text-gray-600 dark:text-gray-300"
             aria-label="Toggle navigation menu"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -148,13 +163,13 @@ const Navigation = () => {
           <>
             {/* Backdrop overlay */}
             <div 
-              className="md:hidden fixed inset-0 bg-black/20 backdrop-blur-sm top-16"
+              className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm top-16"
               onClick={() => setIsOpen(false)}
             />
             
             {/* Mobile menu panel with swipe */}
             <div 
-              className="md:hidden absolute left-0 right-0 bg-white shadow-lg rounded-b-2xl border-t border-brand-50 max-h-[calc(100vh-4rem)] overflow-y-auto"
+              className="md:hidden absolute left-0 right-0 bg-white dark:bg-dark-elevated shadow-lg rounded-b-2xl border-t border-gray-200 dark:border-dark-border max-h-[calc(100vh-4rem)] overflow-y-auto"
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
@@ -168,8 +183,8 @@ const Navigation = () => {
                       onClick={() => setIsOpen(false)}
                       className={`flex items-center gap-3 px-4 py-4 rounded-xl font-medium transition-all active:scale-98 ${
                         isActive(path)
-                          ? 'bg-brand text-white shadow-md'
-                          : 'text-brand-muted hover:bg-brand-50 active:bg-brand-100'
+                          ? 'bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover'
                       }`}
                     >
                       <Icon className="w-5 h-5" />
@@ -177,15 +192,27 @@ const Navigation = () => {
                     </Link>
                   ))}
 
+                  {/* Theme Toggle in Mobile Menu */}
+                  <button
+                    onClick={() => {
+                      toggleTheme();
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-4 py-4 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover rounded-xl transition-all active:scale-98"
+                  >
+                    {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    <span className="text-base font-medium">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+                  </button>
+
                   {currentUser ? (
                     <>
-                      <div className="border-t border-brand-50 my-2" />
+                      <div className="border-t border-gray-200 dark:border-dark-border my-2" />
                       <Link
                         to="/profile"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-4 py-4 text-brand-text hover:bg-brand-50 active:bg-brand-100 rounded-xl transition-all active:scale-98"
+                        className="flex items-center gap-3 px-4 py-4 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-hover rounded-xl transition-all active:scale-98"
                       >
-                        <div className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center text-white font-semibold">
+                        <div className="w-9 h-9 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center text-white font-semibold shadow-lg">
                           {getUserInitial()}
                         </div>
                         <span className="text-base font-medium">{getUserName()}</span>
@@ -193,18 +220,18 @@ const Navigation = () => {
                     </>
                   ) : (
                     <>
-                      <div className="border-t border-brand-50 my-2" />
+                      <div className="border-t border-gray-200 dark:border-dark-border my-2" />
                       <Link
                         to="/login"
                         onClick={() => setIsOpen(false)}
-                        className="px-4 py-4 text-center font-medium text-brand-muted hover:bg-brand-50 active:bg-brand-100 rounded-xl transition-all active:scale-98"
+                        className="px-4 py-4 text-center font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover rounded-xl transition-all active:scale-98"
                       >
-                        Sign In
+                        Log In
                       </Link>
                       <Link
                         to="/register"
                         onClick={() => setIsOpen(false)}
-                        className="px-4 py-4 text-center font-medium text-white bg-brand rounded-xl hover:bg-brand-hover active:scale-98 transition-all shadow-md"
+                        className="px-4 py-4 text-center font-semibold text-white bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-xl hover:shadow-lg active:scale-98 transition-all"
                       >
                         Sign Up
                       </Link>
@@ -212,7 +239,7 @@ const Navigation = () => {
                   )}
                   
                   {/* Swipe hint */}
-                  <div className="text-center py-2 text-xs text-brand-muted">
+                  <div className="text-center py-2 text-xs text-gray-400 dark:text-gray-500">
                     Swipe left to close
                   </div>
                 </div>

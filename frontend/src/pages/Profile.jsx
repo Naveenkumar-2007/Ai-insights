@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Mail, Shield, LogOut, Key } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { User, Mail, Shield, LogOut, Key, Sun, Moon, Bell, Globe } from 'lucide-react';
 
 const Profile = () => {
   const { currentUser, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
@@ -28,14 +30,13 @@ const Profile = () => {
     if (currentUser?.metadata?.creationTime) {
       const date = new Date(currentUser.metadata.creationTime);
       return date.toLocaleDateString('en-US', {
-        month: 'numeric',
+        month: 'long',
         day: 'numeric',
         year: 'numeric'
       });
     }
-
     return new Date().toLocaleDateString('en-US', {
-      month: 'numeric',
+      month: 'long',
       day: 'numeric',
       year: 'numeric'
     });
@@ -46,114 +47,190 @@ const Profile = () => {
   const getAuthProvider = () => {
     if (currentUser?.providerData && currentUser.providerData.length > 0) {
       const providerId = currentUser.providerData[0].providerId;
-      if (providerId === 'google.com') return 'Google.com';
+      if (providerId === 'google.com') return 'Google';
       if (providerId === 'password') return 'Email/Password';
       return providerId;
     }
     return 'Email/Password';
   };
 
+  const getUserName = () => currentUser?.displayName || 'User';
+  const getUserInitial = () => {
+    if (currentUser?.displayName) {
+      return currentUser.displayName.charAt(0).toUpperCase();
+    }
+    if (currentUser?.email) {
+      return currentUser.email.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
+
   return (
-    <div className="min-h-screen bg-brand-50 py-6 sm:py-8 lg:py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-gradient-to-r from-brand-600 via-brand-500 to-brand-600 rounded-t-2xl sm:rounded-t-3xl p-6 sm:p-8 text-white shadow-xl">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold">Account Profile</h1>
-              <p className="text-brand-100 mt-1 text-sm sm:text-base line-clamp-2">Manage your account details and security preferences</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto">
+        {/* Header Card */}
+        <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-200 dark:border-dark-border mb-6">
+          <div className="p-6 sm:p-8">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg">
+                {getUserInitial()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{getUserName()}</h1>
+                <p className="text-gray-500 dark:text-gray-400 mt-1">{currentUser?.email}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    isEmailVerified 
+                      ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' 
+                      : 'bg-gray-100 dark:bg-gray-500/10 text-gray-700 dark:text-gray-400'
+                  }`}>
+                    {isEmailVerified ? '✓ Verified' : 'Not Verified'}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Member since {getMemberSince()}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-b-2xl sm:rounded-b-3xl shadow-xl p-6 sm:p-8">
-          <div className="grid sm:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4 sm:mb-6">
-                <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600 flex-shrink-0" />
-                <h2 className="text-lg sm:text-xl font-bold text-brand-text">Contact Information</h2>
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left Column - Settings */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Account Information */}
+            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-200 dark:border-dark-border p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <User className="w-5 h-5 text-cyan-600" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Contact Information</h2>
               </div>
-
-              <div className="space-y-3 sm:space-y-4">
+              
+              <div className="space-y-4">
                 <div>
-                  <p className="block text-xs font-medium text-gray-500 uppercase mb-1 sm:mb-2">Name</p>
-                  <p className="text-base sm:text-lg font-semibold text-brand-text break-words">{currentUser?.displayName || 'User'}</p>
+                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Name</label>
+                  <p className="text-base font-semibold text-gray-900 dark:text-white">{getUserName()}</p>
                 </div>
-
                 <div>
-                  <p className="block text-xs font-medium text-gray-500 uppercase mb-1 sm:mb-2">Email</p>
-                  <p className="text-sm sm:text-base lg:text-lg text-brand-text break-all">{currentUser?.email || 'No email provided'}</p>
+                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Email</label>
+                  <p className="text-base text-gray-900 dark:text-white break-all">{currentUser?.email}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Provider</label>
+                  <p className="text-base text-gray-900 dark:text-white">{getAuthProvider()}</p>
                 </div>
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 mb-4 sm:mb-6">
-                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600 flex-shrink-0" />
-                <h2 className="text-lg sm:text-xl font-bold text-brand-text">Security Overview</h2>
+            {/* Appearance Settings */}
+            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-200 dark:border-dark-border p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <Globe className="w-5 h-5 text-cyan-600" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Appearance</h2>
               </div>
-
-              <div className="space-y-2 sm:space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isEmailVerified ? 'bg-brand-500' : 'bg-gray-300'}`} />
-                  <span className="text-xs sm:text-sm text-gray-700">
-                    Email verified: <span className="font-semibold">{isEmailVerified ? 'Yes' : 'No'}</span>
-                  </span>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-dark-elevated rounded-xl">
+                  <div className="flex items-center gap-3">
+                    {isDark ? <Moon className="w-5 h-5 text-cyan-600" /> : <Sun className="w-5 h-5 text-amber-500" />}
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Theme</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Current: {isDark ? 'Dark' : 'Light'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {isDark ? 'Dark' : 'Light'}
+                    </span>
+                    <button
+                      onClick={toggleTheme}
+                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                        isDark ? 'bg-cyan-600' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                          isDark ? 'translate-x-7' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
+              </div>
+            </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" />
-                  <span className="text-xs sm:text-sm text-gray-700 break-words">
-                    Provider: <span className="font-semibold">{getAuthProvider()}</span>
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" />
-                  <span className="text-xs sm:text-sm text-gray-700">
-                    Member since: <span className="font-semibold">{getMemberSince()}</span>
-                  </span>
+            {/* Security Settings */}
+            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-200 dark:border-dark-border p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <Shield className="w-5 h-5 text-cyan-600" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Security</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-dark-elevated rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Key className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Password</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Change your password</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleUpdatePassword}
+                    className="px-4 py-2 text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-500/10 rounded-lg transition-colors"
+                  >
+                    Change
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-gray-200 pt-6 sm:pt-8 mb-6 sm:mb-8">
-            <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <Key className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600 flex-shrink-0" />
-              <h2 className="text-lg sm:text-xl font-bold text-brand-text">Account Security</h2>
+          {/* Right Column - Quick Actions */}
+          <div className="space-y-6">
+            {/* Account Stats */}
+            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-200 dark:border-dark-border p-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Account Stats</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Predictions Made</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">0</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Stocks Tracked</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">0</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Accuracy Rate</span>
+                  <span className="text-lg font-bold text-cyan-600 dark:text-cyan-400">--%</span>
+                </div>
+              </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
-              For security, password updates require recent authentication. Use the button below to open the dedicated password change flow.
-            </p>
+            {/* How to Use */}
+            <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-500/10 dark:to-cyan-600/10 rounded-2xl border border-cyan-200 dark:border-cyan-500/20 p-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">How to Use</h3>
+              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Learn how to make accurate investment decisions with AI predictions. Get more info now.
+              </p>
+            </div>
 
-            <button
-              type="button"
-              onClick={handleUpdatePassword}
-              className="w-full sm:w-auto bg-brand text-white px-6 py-3 sm:px-8 sm:py-3 rounded-lg font-semibold hover:bg-brand-hover transition-all transform hover:scale-105 shadow-md touch-target active-scale ripple"
-            >
-              Change Password
-            </button>
-          </div>
-
-          <div className="border-t border-gray-200 pt-6 sm:pt-8">
-            <h2 className="text-lg sm:text-xl font-bold text-red-600 mb-2">Sign out</h2>
-            <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
-              Securely end your session. You will need to sign in again to access predictions.
-            </p>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loading}
-              className="w-full sm:w-auto bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 sm:px-8 sm:py-3 rounded-lg font-semibold hover:from-red-600 hover:to-red-700 transition-all transform hover:scale-105 shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed touch-target active-scale ripple"
-            >
-              <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>{loading ? 'Logging out...' : 'Logout'}</span>
-            </button>
+            {/* Sign Out */}
+            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-red-200 dark:border-red-500/20 p-6">
+              <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2">Sign Out</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Securely end your session.
+              </p>
+              <button
+                onClick={handleLogout}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <LogOut className="w-5 h-5" />
+                <span>{loading ? 'Logging out...' : 'Log out'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

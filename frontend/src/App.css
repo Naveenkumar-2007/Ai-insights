@@ -1,10 +1,28 @@
 :root {
-  color-scheme: light;
-  --color-brand: #3A8AFF;
-  --color-brand-hover: #1F74F0;
-  --color-brand-surface: #E8F1FF;
-  --color-text-primary: #1A1A1A;
-  --color-text-secondary: #5A5A5A;
+  /* Light theme (default for CSS vars) */
+  --color-bg: #FFFFFF;
+  --color-card: #F8F9FA;
+  --color-elevated: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #4B5563;
+  --color-text-muted: #6B7280;
+  
+  /* Brand colors */
+  --color-cyan: #00B8FF;
+  --color-cyan-hover: #0099FF;
+  --color-cyan-light: #22D3EE;
+}
+
+.dark {
+  /* Dark theme overrides */
+  --color-bg: #0A0E1F;
+  --color-card: #131833;
+  --color-elevated: #1A2038;
+  --color-border: #252B4A;
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #CBD5E1;
+  --color-text-muted: #94A3B8;
 }
 
 * {
@@ -13,6 +31,11 @@
 
 body {
   margin: 0;
-  background-color: #ffffff;
-  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
+
