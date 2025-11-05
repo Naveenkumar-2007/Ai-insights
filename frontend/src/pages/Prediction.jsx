@@ -222,7 +222,7 @@ const formatVolume = (value) => {
 
 function Prediction() {
   const { currentUser } = useAuth();
-  const [ticker, setTicker] = useState('AAPL');
+  const [ticker, setTicker] = useState(''); // Start empty - no default stock
   const [days, setDays] = useState(7);
   const [stockData, setStockData] = useState(null);
   const [sentiment, setSentiment] = useState(null);
@@ -232,6 +232,7 @@ function Prediction() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [performancePeriod, setPerformancePeriod] = useState('1M'); // New state for performance chart period
+  const [hasSearched, setHasSearched] = useState(false); // Track if user has searched
 
   // Filter performance data based on selected period
   const getPerformanceData = () => {
@@ -381,6 +382,15 @@ function Prediction() {
       ]);
 
       const payload = stockRes.data;
+      
+      // Debug: Log the candles data structure
+      console.log('📊 Stock Data Received:', {
+        ticker: payload.ticker,
+        candlesCount: payload.technical_chart?.candles?.length,
+        firstCandle: payload.technical_chart?.candles?.[0],
+        lastCandle: payload.technical_chart?.candles?.[payload.technical_chart?.candles?.length - 1]
+      });
+      
       setStockData(payload);
       if (
         payload?.ticker &&
@@ -421,6 +431,7 @@ function Prediction() {
     }
 
     setTicker(query);
+    setHasSearched(true); // Mark that user has searched
     fetchStockData(query);
     setSuggestions([]);
     setShowSuggestions(false);
@@ -460,12 +471,142 @@ function Prediction() {
 
   const predictionRows = computePredictionRows();
 
-  if (loading && !stockData) {
+  // Empty state - show beautiful placeholder when no stock is selected (FIRST VISIT)
+  if (!hasSearched && !loading && !stockData && !error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-cyan-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-12 sm:py-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Main Content */}
+          <div className="text-center mb-12">
+            <div className="animate-bounce mb-8">
+              <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 shadow-2xl mb-6">
+                <TrendingUp className="w-16 h-16 text-white animate-pulse" />
+              </div>
+            </div>
+            <h1 className="text-5xl sm:text-6xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-6">
+              AI Stock Price Predictor
+            </h1>
+            <p className="text-2xl sm:text-3xl font-semibold text-gray-700 dark:text-gray-300 mb-4 animate-pulse">
+              Search Your Favorite Stock
+            </p>
+            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              Get AI-powered predictions, technical analysis, sentiment insights, and real-time news for any stock
+            </p>
+          </div>
+
+          {/* Search Form - Prominent */}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 sm:p-12 border-2 border-cyan-200 dark:border-cyan-800 mb-12 transform hover:scale-105 transition-transform duration-300">
+            <form onSubmit={handleSearch} className="space-y-6">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={ticker}
+                  onChange={(e) => handleTickerInput(e.target.value)}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  placeholder="Enter stock symbol (e.g., AAPL, TSLA, MSFT)"
+                  className="w-full px-8 py-6 text-2xl border-3 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl focus:ring-4 focus:ring-cyan-500 focus:border-cyan-500 transition shadow-inner"
+                  autoFocus
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute z-20 mt-2 w-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto">
+                    <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {suggestions.map(({ symbol, name, exchange, country, currency }) => (
+                        <li key={`${symbol}-${exchange || 'NA'}`}>
+                          <button
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => handleSuggestionSelect(symbol)}
+                            className="w-full px-6 py-4 flex items-start justify-between text-left hover:bg-cyan-50 dark:hover:bg-cyan-500/10 transition-all"
+                          >
+                            <span className="font-bold text-lg text-gray-900 dark:text-white">{symbol}</span>
+                            <div className="flex-1 ml-4 overflow-hidden">
+                              <p className="text-base text-gray-600 dark:text-gray-400 truncate">{name}</p>
+                              {(exchange || country || currency) && (
+                                <p className="text-sm text-gray-400 dark:text-gray-500 truncate">
+                                  {[exchange, country, currency].filter(Boolean).join(' · ')}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <select
+                  value={days}
+                  onChange={(e) => setDays(Number(e.target.value))}
+                  className="flex-1 px-6 py-4 text-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl focus:ring-4 focus:ring-cyan-500 shadow-inner"
+                >
+                  <option value={1}>1 Day Prediction</option>
+                  <option value={7}>7 Days Prediction</option>
+                  <option value={14}>14 Days Prediction</option>
+                  <option value={30}>30 Days Prediction</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={!ticker.trim()}
+                  className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white px-10 py-4 rounded-xl flex items-center justify-center gap-3 transition transform hover:scale-105 active:scale-95 text-xl font-bold shadow-2xl hover:shadow-cyan-500/50"
+                >
+                  <Search className="w-7 h-7" />
+                  Start Prediction
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Quick Access Stocks */}
+          <div className="text-center">
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-6 font-medium">Popular Stocks</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {['AAPL', 'TSLA', 'MSFT', 'GOOGL'].map((symbol) => (
+                <button
+                  key={symbol}
+                  onClick={() => {
+                    setTicker(symbol);
+                    setHasSearched(true);
+                    fetchStockData(symbol);
+                  }}
+                  className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 hover:border-cyan-500 dark:hover:border-cyan-500 rounded-2xl p-6 transition transform hover:scale-110 hover:shadow-2xl group"
+                >
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition">
+                    {symbol}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Quick Start</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state - show animated loading with stock symbol (AFTER SEARCH)
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-cyan-600 dark:border-cyan-500 mx-auto"></div>
-          <p className="mt-4 text-gray-700 dark:text-gray-300 font-medium">Loading stock data...</p>
+          <div className="relative">
+            <div className="animate-spin rounded-full h-24 w-24 border-b-4 border-t-4 border-cyan-600 dark:border-cyan-500 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <TrendingUp className="w-10 h-10 text-cyan-600 dark:text-cyan-400 animate-pulse" />
+            </div>
+          </div>
+          <h3 className="mt-6 text-2xl font-bold text-gray-900 dark:text-white animate-pulse">
+            Predicting {ticker.toUpperCase()}
+          </h3>
+          <p className="mt-3 text-lg text-gray-600 dark:text-gray-400">
+            Analyzing stock data and generating predictions...
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-cyan-600 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-cyan-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-cyan-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
         </div>
       </div>
     );
@@ -545,9 +686,9 @@ function Prediction() {
       )}
 
       {stockData && (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
           {/* Stock Header */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200 dark:border-gray-700">
+          <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl p-5 sm:p-7 mb-5 sm:mb-7 border border-gray-200 dark:border-gray-700 hover:shadow-2xl transition-shadow duration-300">
             <div className="flex items-start justify-between flex-wrap gap-3 sm:gap-4">
               <div className="flex items-start gap-3 sm:gap-4">
                 <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/30 dark:to-blue-900/30 flex items-center justify-center overflow-hidden border-2 border-cyan-200 dark:border-cyan-600/30 flex-shrink-0 stock-logo-lg">
@@ -624,11 +765,11 @@ function Prediction() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-7">
             {/* Left Column - Charts */}
-            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            <div className="lg:col-span-2 space-y-5 sm:space-y-7">
               {/* Professional Stock Price Prediction Chart */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+              <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl p-5 sm:p-7 border border-gray-200 dark:border-gray-700 hover:shadow-2xl transition-all duration-300 overflow-hidden">
                 <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
                   <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 dark:text-cyan-400" />
@@ -638,13 +779,13 @@ function Prediction() {
                     {days} Days Forecast
                   </span>
                 </div>
-                <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-2" style={{ height: '350px', minHeight: '300px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-2 sm:p-3 overflow-hidden" style={{ height: '320px', minHeight: '280px', maxHeight: '320px' }}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <ComposedChart data={[
-                      ...stockData.historical_data.dates.map((date, i) => ({
-                        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                        fullDate: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                        price: stockData.historical_data.prices[i],
+                      ...stockData.technical_chart.candles.slice(-30).map((candle) => ({
+                        date: new Date(candle.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        fullDate: new Date(candle.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        price: candle.close,
                         type: 'historical'
                       })),
                       ...stockData.future_predictions.map((pred) => ({
@@ -653,7 +794,7 @@ function Prediction() {
                         predicted: pred.price,
                         type: 'predicted'
                       }))
-                    ]} margin={{ top: 15, right: 20, left: 10, bottom: 65 }}>
+                    ]} margin={{ top: 10, right: 15, left: 0, bottom: 60 }}>
                       <defs>
                         <linearGradient id="historicalGradientGreen" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#10b981" stopOpacity={0.6}/>
@@ -672,10 +813,10 @@ function Prediction() {
                       />
                       <XAxis 
                         dataKey="date" 
-                        tick={{ fontSize: 11, fill: '#9ca3af' }} 
+                        tick={{ fontSize: 10, fill: '#9ca3af' }} 
                         angle={-45} 
                         textAnchor="end" 
-                        height={70}
+                        height={65}
                         stroke="#6b7280"
                       />
                       <YAxis 
@@ -752,16 +893,16 @@ function Prediction() {
               </div>
 
               {/* Technical Chart - Professional Candlestick */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+              <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-xl p-5 sm:p-7 border border-gray-200 dark:border-gray-700 hover:shadow-2xl transition-all duration-300 overflow-hidden">
                 <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2">
                   <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 dark:text-cyan-400" />
                   <span>Technical Chart (Candlestick)</span>
                 </h3>
-                <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-2" style={{ height: '450px', minHeight: '400px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="w-full bg-gray-50 dark:bg-gray-900 rounded-lg p-2 sm:p-3 overflow-hidden" style={{ height: '500px', minHeight: '450px', maxHeight: '500px' }}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <ComposedChart 
                       data={stockData.technical_chart.candles.slice(-30)}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
+                      margin={{ top: 20, right: 30, left: 5, bottom: 70 }}
                     >
                       <defs>
                         <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
@@ -781,7 +922,7 @@ function Prediction() {
                         tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
                         angle={-45}
                         textAnchor="end"
-                        height={70}
+                        height={75}
                         stroke="#6b7280"
                       />
                       <YAxis 
@@ -789,15 +930,15 @@ function Prediction() {
                         orientation="right" 
                         domain={['auto', 'auto']}
                         tick={{ fontSize: 11, fill: '#9ca3af' }} 
-                        width={65}
+                        width={70}
                         stroke="#6b7280"
-                        tickFormatter={(val) => `$${val.toFixed(0)}`}
+                        tickFormatter={(val) => `$${val.toFixed(2)}`}
                       />
                       <YAxis 
                         yAxisId="volume" 
                         orientation="left" 
                         tick={{ fontSize: 10, fill: '#9ca3af' }} 
-                        width={60}
+                        width={65}
                         stroke="#6b7280"
                         tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`}
                       />
@@ -808,50 +949,77 @@ function Prediction() {
                           borderRadius: '8px',
                           backdropFilter: 'blur(10px)'
                         }}
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            const isGreen = data.close >= data.open;
-                            const change = ((data.close - data.open) / data.open * 100).toFixed(2);
-                            return (
-                              <div className="bg-gray-900 p-3 border border-gray-700 rounded-lg shadow-xl">
-                                <p className="text-xs font-bold text-white mb-2">
-                                  {new Date(data.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </p>
-                                <div className="space-y-1.5">
-                                  <div className="flex justify-between gap-6">
-                                    <span className="text-xs text-gray-400">Open:</span>
-                                    <span className="text-xs font-bold text-blue-400">${data.open?.toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex justify-between gap-6">
-                                    <span className="text-xs text-gray-400">High:</span>
-                                    <span className="text-xs font-bold text-green-400">${data.high?.toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex justify-between gap-6">
-                                    <span className="text-xs text-gray-400">Low:</span>
-                                    <span className="text-xs font-bold text-red-400">${data.low?.toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex justify-between gap-6">
-                                    <span className="text-xs text-gray-400">Close:</span>
-                                    <span className={`text-xs font-bold ${isGreen ? 'text-green-400' : 'text-red-400'}`}>
-                                      ${data.close?.toFixed(2)}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between gap-6 pt-1.5 border-t border-gray-700">
-                                    <span className="text-xs text-gray-400">Volume:</span>
-                                    <span className="text-xs font-bold text-purple-400">{formatVolume(data.volume)}</span>
-                                  </div>
-                                  <div className="flex justify-between gap-6">
-                                    <span className="text-xs text-gray-400">Change:</span>
-                                    <span className={`text-xs font-bold ${isGreen ? 'text-green-400' : 'text-red-400'}`}>
-                                      {change > 0 ? '+' : ''}{change}%
-                                    </span>
-                                  </div>
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload || payload.length === 0) return null;
+                          
+                          // Get the full candle data from the chart data using the date
+                          const chartData = stockData.technical_chart.candles.slice(-30);
+                          const candleData = chartData.find(candle => candle.date === label);
+                          
+                          console.log('🎯 Label:', label);
+                          console.log('🎯 Candle Data Found:', candleData);
+                          
+                          if (!candleData) {
+                            console.error('❌ Could not find candle data for date:', label);
+                            return null;
+                          }
+                          
+                          // Now we have the full OHLC data
+                          const open = parseFloat(candleData.open);
+                          const high = parseFloat(candleData.high);
+                          const low = parseFloat(candleData.low);
+                          const close = parseFloat(candleData.close);
+                          const volume = parseInt(candleData.volume) || 0;
+                          
+                          console.log('💰 OHLC Values:', { open, high, low, close, volume });
+                          
+                          if (isNaN(open) || isNaN(close)) {
+                            console.error('❌ Invalid OHLC values');
+                            return null;
+                          }
+                          
+                          const isGreen = close >= open;
+                          const change = open > 0 ? ((close - open) / open * 100) : 0;
+                            
+                          return (
+                            <div className="bg-gray-900 p-3 border border-gray-700 rounded-lg shadow-xl">
+                              <p className="text-xs font-bold text-white mb-2">
+                                {new Date(candleData.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </p>
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between gap-6">
+                                  <span className="text-xs text-gray-400">Open:</span>
+                                  <span className="text-xs font-bold text-blue-400">${open.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between gap-6">
+                                  <span className="text-xs text-gray-400">High:</span>
+                                  <span className="text-xs font-bold text-green-400">${high.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between gap-6">
+                                  <span className="text-xs text-gray-400">Low:</span>
+                                  <span className="text-xs font-bold text-red-400">${low.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between gap-6">
+                                  <span className="text-xs text-gray-400">Close:</span>
+                                  <span className={`text-xs font-bold ${isGreen ? 'text-green-400' : 'text-red-400'}`}>
+                                    ${close.toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-6 pt-1.5 border-t border-gray-700">
+                                  <span className="text-xs text-gray-400">Volume:</span>
+                                  <span className="text-xs font-bold text-purple-400">
+                                    {volume > 0 ? formatVolume(volume) : 'N/A'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-6">
+                                  <span className="text-xs text-gray-400">Change:</span>
+                                  <span className={`text-xs font-bold ${isGreen ? 'text-green-400' : 'text-red-400'}`}>
+                                    {change > 0 ? '+' : ''}{change.toFixed(2)}%
+                                  </span>
                                 </div>
                               </div>
-                            );
-                          }
-                          return null;
+                            </div>
+                          );
                         }} 
                       />
                       <Legend 
@@ -869,46 +1037,59 @@ function Prediction() {
                         fill="url(#volumeGradient)" 
                         name="Volume" 
                         radius={[2, 2, 0, 0]}
-                        opacity={0.6}
+                        opacity={0.5}
                       />
                       
-                      {/* Professional Candlesticks - Using Error Bars for OHLC */}
+                      {/* Candlestick Chart - Simplified and Working */}
                       <Bar 
                         yAxisId="price" 
-                        dataKey="open"
-                        name="OHLC"
+                        dataKey="close"
+                        name="Price"
+                        isAnimationActive={false}
                         shape={(props) => {
-                          const { x, y, width, height, payload } = props;
-                          if (!payload || typeof payload.open === 'undefined') return null;
+                          const { x, y, width, payload, height } = props;
+                          if (!payload || !payload.open || !payload.close || !payload.high || !payload.low) {
+                            console.warn('Missing OHLC data in shape:', payload);
+                            return null;
+                          }
+
+                          // Get the Y-axis scale from the chart
+                          const chartData = stockData.technical_chart.candles.slice(-30);
+                          const priceHigh = Math.max(...chartData.map(d => d.high));
+                          const priceLow = Math.min(...chartData.map(d => d.low));
+                          const priceRange = priceHigh - priceLow;
                           
+                          // Calculate Y positions based on chart dimensions
+                          const yScale = (price) => {
+                            const ratio = (price - priceLow) / priceRange;
+                            return y + height - (ratio * height);
+                          };
+
+                          const openY = yScale(payload.open);
+                          const closeY = yScale(payload.close);
+                          const highY = yScale(payload.high);
+                          const lowY = yScale(payload.low);
+
                           const isGreen = payload.close >= payload.open;
                           const color = isGreen ? '#10b981' : '#ef4444';
-                          
-                          // Calculate scaling - use the chart's coordinate system
-                          const chartHeight = height;
-                          const priceRange = Math.max(...stockData.technical_chart.candles.slice(-30).map(c => c.high)) - 
-                                           Math.min(...stockData.technical_chart.candles.slice(-30).map(c => c.low));
-                          const priceMin = Math.min(...stockData.technical_chart.candles.slice(-30).map(c => c.low));
-                          
-                          const getYPos = (price) => {
-                            const ratio = (price - priceMin) / priceRange;
-                            return y + chartHeight - (ratio * chartHeight);
-                          };
-                          
-                          const highY = getYPos(payload.high);
-                          const lowY = getYPos(payload.low);
-                          const openY = getYPos(payload.open);
-                          const closeY = getYPos(payload.close);
+                          const fillColor = isGreen ? '#10b981' : '#ef4444';
                           
                           const wickX = x + width / 2;
-                          const candleWidth = Math.max(width * 0.7, 4);
+                          const candleWidth = Math.max(width * 0.65, 3);
                           const candleX = x + (width - candleWidth) / 2;
-                          const bodyHeight = Math.abs(closeY - openY);
-                          const bodyY = Math.min(openY, closeY);
-                          
+                          const bodyTop = Math.min(openY, closeY);
+                          const bodyHeight = Math.max(Math.abs(closeY - openY), 1);
+
                           return (
-                            <g>
-                              {/* High-Low wick line */}
+                            <g 
+                              key={`candle-${payload.date}`}
+                              data-open={payload.open}
+                              data-high={payload.high}
+                              data-low={payload.low}
+                              data-close={payload.close}
+                              data-volume={payload.volume}
+                            >
+                              {/* High-Low Wick */}
                               <line
                                 x1={wickX}
                                 y1={highY}
@@ -917,16 +1098,15 @@ function Prediction() {
                                 stroke={color}
                                 strokeWidth={1.5}
                               />
-                              {/* Open-Close body rectangle */}
+                              {/* Open-Close Body */}
                               <rect
                                 x={candleX}
-                                y={bodyY}
+                                y={bodyTop}
                                 width={candleWidth}
-                                height={Math.max(bodyHeight, 1)}
-                                fill={isGreen ? color : '#1f2937'}
+                                height={bodyHeight}
+                                fill={isGreen ? fillColor : 'transparent'}
                                 stroke={color}
                                 strokeWidth={1.5}
-                                rx={1}
                               />
                             </g>
                           );

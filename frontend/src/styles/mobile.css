@@ -1,6 +1,6 @@
 /* Mobile-First Enhancements for Stock Price Predictor */
 
-/* Reset and prevent zoom issues */
+/* Reset and prevent ALL zoom issues */
 html {
   -webkit-text-size-adjust: 100%;
   -moz-text-size-adjust: 100%;
@@ -14,28 +14,27 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent any zoom on body */
+  touch-action: pan-y;
 }
 
 /* Prevent zoom on double-tap for all elements EXCEPT charts */
 * {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  /* Prevent user zoom globally */
+  -ms-content-zooming: none;
 }
 
-/* Allow pinch-zoom and pan on charts/graphs */
-.recharts-wrapper,
-.recharts-surface,
-.recharts-responsive-container,
-svg,
-canvas {
-  touch-action: pan-x pan-y pinch-zoom !important;
-}
-
-/* Specific chart areas that should allow zoom */
-.chart-container,
-[class*="chart"],
-[class*="Chart"] {
-  touch-action: pan-x pan-y pinch-zoom !important;
+/* Completely disable zoom on mobile */
+@media screen and (max-width: 768px) {
+  html, body {
+    -webkit-text-size-adjust: none;
+    -moz-text-size-adjust: none;
+    -ms-text-size-adjust: none;
+    text-size-adjust: none;
+    touch-action: pan-y;
+  }
 }
 
 /* Improve touch targets - minimum 44x44px for accessibility */

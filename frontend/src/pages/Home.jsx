@@ -235,9 +235,9 @@ const Home = () => {
               </div>
               
               <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-6 leading-[1.1]">
-                AI-Powered Stock
+                Stock Predictions
                 <span className="block bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  Market Intelligence
+                  for Smart Investors
                 </span>
               </h1>
               
