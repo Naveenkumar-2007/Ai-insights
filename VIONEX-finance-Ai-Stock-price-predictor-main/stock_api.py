@@ -828,24 +828,30 @@ def get_company_news(ticker, days=7):
             print(f"No news found for {ticker}")
             return []
         
-        # Filter and format news articles - ONLY include articles mentioning the ticker or company
+        # Filter and format news articles - Be more lenient with relevance filtering
         news_articles = []
         ticker_lower = ticker.lower()
         
-        for article in news_data:
+        for article in news_data[:15]:  # Check first 15 articles
             headline = article.get('headline', '').lower()
             summary = article.get('summary', '').lower()
             
             # Check if article is relevant to the searched stock
             is_relevant = False
             
-            # Check if ticker symbol is mentioned
+            # Check if ticker symbol is mentioned (case insensitive)
             if ticker_lower in headline or ticker_lower in summary:
                 is_relevant = True
             
             # Check if company name is mentioned (if we have it)
-            if company_name and (company_name in headline or company_name in summary):
-                is_relevant = True
+            if company_name and len(company_name) > 3:  # Avoid short names causing false matches
+                if company_name in headline or company_name in summary:
+                    is_relevant = True
+            
+            # If no company name match, be more lenient - include articles from the same sector
+            # Or just include all articles from the API response since Finnhub already filters by ticker
+            if not is_relevant and len(news_articles) < 5:  # At least show 5 news items
+                is_relevant = True  # Include all Finnhub company news since it's already filtered
             
             # Only add relevant articles
             if is_relevant:

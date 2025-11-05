@@ -21,3 +21,6 @@ requests>=2.31.0
 
 # Utilities
 python-dotenv>=1.0.0
+
+# Scheduling for automatic model training
+schedule>=1.2.0

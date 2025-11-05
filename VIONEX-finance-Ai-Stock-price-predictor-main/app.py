@@ -84,6 +84,14 @@ print("=" * 60)
 print("Stock Predictor App - Using Twelve Data API")
 print("=" * 60)
 
+# Start automatic model training scheduler
+try:
+    from scheduler import scheduler
+    scheduler.start()
+    print("✅ Automatic model training started (runs every hour)")
+except Exception as e:
+    print(f"⚠️ Could not start training scheduler: {e}")
+
 # Configure Flask to serve React build (optimized)
 application = Flask(__name__, static_folder='build', static_url_path='')
 app = application
@@ -238,6 +246,115 @@ def cleanup_expired_cache():
         'message': f'Cleaned up {removed} expired cache files',
         'files_removed': removed
     })
+
+# Model Training & Performance Endpoints
+@app.route('/api/models/performance')
+def get_model_performance():
+    """Get overall model performance statistics"""
+    try:
+        from model_trainer import trainer
+        performance = trainer.get_model_performance()
+        
+        if performance:
+            return jsonify({
+                'success': True,
+                'performance': performance
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'No models trained yet',
+                'performance': None
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/models/training-status')
+def get_training_status():
+    """Get model training scheduler status"""
+    try:
+        from scheduler import scheduler
+        status = scheduler.get_status()
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/models/train', methods=['POST'])
+def trigger_manual_training():
+    """Manually trigger model training"""
+    try:
+        from scheduler import scheduler
+        
+        # Run training in background
+        import threading
+        def train_async():
+            scheduler.train_models_job()
+        
+        thread = threading.Thread(target=train_async, daemon=True)
+        thread.start()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Model training started in background'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/models/predict/<ticker>')
+def get_ml_prediction(ticker):
+    """Get prediction from trained ML models"""
+    try:
+        from model_trainer import trainer
+        from stock_api import fetch_stock_data_cached
+        
+        # Fetch recent data
+        stock_data = fetch_stock_data_cached(ticker, days=60)
+        
+        if not stock_data or 'historical_data' not in stock_data:
+            return jsonify({
+                'success': False,
+                'error': 'Could not fetch stock data'
+            }), 404
+        
+        # Prepare data for prediction
+        import pandas as pd
+        hist_df = pd.DataFrame({
+            'date': stock_data['historical_data']['dates'],
+            'close': stock_data['historical_data']['prices']
+        })
+        
+        # Get prediction
+        prediction = trainer.predict(ticker, hist_df)
+        
+        if prediction:
+            return jsonify({
+                'success': True,
+                'ticker': ticker,
+                'prediction': prediction
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'No trained model available for {ticker}'
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # TEST ROUTE - To verify new code is deployed
 @app.route('/test-route-fix')
@@ -593,9 +710,13 @@ def get_stock_data(ticker):
         latest_row = hist.iloc[-1]
 
         def safe_float(value, decimals=2):
+            """Convert value to float, return None only for indicators (not OHLC)"""
             if value is None or (isinstance(value, float) and pd.isna(value)):
                 return None
-            return float(round(value, decimals))
+            try:
+                return float(round(float(value), decimals))
+            except (ValueError, TypeError):
+                return None
 
         indicators = {
             'rsi': safe_float(latest_row.get('RSI')),
@@ -713,20 +834,40 @@ def get_stock_data(ticker):
         recent_ohlcv = hist.tail(60)
         candlestick_data = []
         volume_data = []
+        
         for index, row in recent_ohlcv.iterrows():
             date_str = index.strftime('%Y-%m-%d')
-            candlestick_data.append({
+            
+            # Get raw values from DataFrame - ensure they're never None
+            try:
+                open_val = float(row['Open']) if pd.notna(row['Open']) else float(row['Close'])
+                high_val = float(row['High']) if pd.notna(row['High']) else open_val
+                low_val = float(row['Low']) if pd.notna(row['Low']) else open_val
+                close_val = float(row['Close']) if pd.notna(row['Close']) else open_val
+                volume_val = int(float(row['Volume'])) if 'Volume' in row and pd.notna(row['Volume']) else 0
+            except (ValueError, TypeError, KeyError) as e:
+                print(f"⚠️ Error parsing OHLCV data for {date_str}: {e}")
+                continue  # Skip this candle if data is corrupted
+            
+            # Round to 2 decimal places
+            candle = {
                 'date': date_str,
-                'open': safe_float(row['Open']),
-                'high': safe_float(row['High']),
-                'low': safe_float(row['Low']),
-                'close': safe_float(row['Close'])
+                'open': round(open_val, 2),
+                'high': round(high_val, 2),
+                'low': round(low_val, 2),
+                'close': round(close_val, 2),
+                'volume': volume_val
+            }
+            candlestick_data.append(candle)
+            volume_data.append({
+                'date': date_str,
+                'volume': volume_val
             })
-            if 'Volume' in row:
-                volume_data.append({
-                    'date': date_str,
-                    'volume': int(float(row['Volume'])) if not pd.isna(row['Volume']) else 0
-                })
+        
+        # Debug: Log first candle to verify structure
+        if candlestick_data:
+            print(f"📊 Sample candle data: {candlestick_data[0]}")
+            print(f"📊 Total candles: {len(candlestick_data)}")
 
         ma_data = {'sma20': [], 'sma50': []}
         for index, row in recent_ohlcv.iterrows():
